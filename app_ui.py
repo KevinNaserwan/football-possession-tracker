@@ -1305,18 +1305,35 @@ HTML_TEMPLATE = """
     const canvas2D = document.getElementById('pitch-2d-canvas');
     const ctx2D = canvas2D.getContext('2d');
 
-    let camYaw = 0.0;
-    let camPitch = 0.52;
-    let camDist = 58.0;
+    // ---------------- UNIVERSAL ROBUST 3D PERSPECTIVE ENGINE (LOOKAT VECTOR CAMERA) ----------------
+    let camPosX = 52.5;
+    let camPosY = -36.0;
+    let camPosZ = 42.0;
     let camTargetX = 52.5;
     let camTargetY = 34.0;
     let camTargetZ = 0.0;
-    let camFovMult = 2.05;
-    let camOffsetY = 0.02;
+    let camFov = 42.0;
     let currentCamPreset = 'broadcast';
     let isDragging = false;
     let lastMouseX = 0;
     let lastMouseY = 0;
+
+    // Orbit Spherical Angles for 360 degree drag rotation & zoom
+    let orbitYaw = 0.0;       // 0 = south sideline TV view, Math.PI = north sideline
+    let orbitPitch = 0.50;    // ~28 degrees elevation above pitch
+    let orbitDist = 82.0;     // comfortable distance to see all 22 players
+
+    function updateCameraPositionFromOrbit() {
+      const cosP = Math.cos(orbitPitch);
+      const sinP = Math.sin(orbitPitch);
+      const sinY = Math.sin(orbitYaw);
+      const cosY = Math.cos(orbitYaw);
+
+      camPosX = camTargetX - sinY * (orbitDist * cosP);
+      camPosY = camTargetY - cosY * (orbitDist * cosP);
+      camPosZ = camTargetZ + orbitDist * sinP;
+    }
+    updateCameraPositionFromOrbit();
 
     canvas2D.addEventListener('mousedown', (e) => {
       isDragging = true;
@@ -1331,8 +1348,10 @@ HTML_TEMPLATE = """
       lastMouseX = e.clientX;
       lastMouseY = e.clientY;
 
-      camYaw += dx * 0.005;
-      camPitch = Math.max(0.12, Math.min(1.48, camPitch + dy * 0.005));
+      // 360 degree smooth rotation without gimbal lock
+      orbitYaw -= dx * 0.006;
+      orbitPitch = Math.max(0.08, Math.min(1.45, orbitPitch + dy * 0.006));
+      updateCameraPositionFromOrbit();
       render(currentFrame);
     });
 
@@ -1341,7 +1360,8 @@ HTML_TEMPLATE = """
     canvas2D.addEventListener('wheel', (e) => {
       if (activeView !== '3d') return;
       e.preventDefault();
-      camDist = Math.max(25.0, Math.min(160.0, camDist + e.deltaY * 0.08));
+      orbitDist = Math.max(25.0, Math.min(180.0, orbitDist + e.deltaY * 0.08));
+      updateCameraPositionFromOrbit();
       render(currentFrame);
     }, { passive: false });
 
@@ -1358,29 +1378,46 @@ HTML_TEMPLATE = """
     }
 
     function project3D(x, y, z, W, H) {
-      const cx = x - camTargetX;
-      const cy = y - camTargetY;
-      const cz = (z || 0) - camTargetZ;
+      // 1. Forward Vector (Camera -> Target)
+      const fX = camTargetX - camPosX;
+      const fY = camTargetY - camPosY;
+      const fZ = camTargetZ - camPosZ;
+      const fLen = Math.hypot(fX, fY, fZ) || 1.0;
+      const fx = fX / fLen, fy = fY / fLen, fz = fZ / fLen;
 
-      const cosY = Math.cos(camYaw);
-      const sinY = Math.sin(camYaw);
-      const rx = cx * cosY - cy * sinY;
-      const ry = cx * sinY + cy * cosY;
+      // 2. Camera Right = Forward x WorldUp (0, 0, 1)
+      const rX = fy * 1.0;
+      const rY = -fx * 1.0;
+      const rZ = 0.0;
+      const rLen = Math.hypot(rX, rY, rZ) || 1.0;
+      const rx = rX / rLen, ry = rY / rLen, rz = rZ / rLen;
 
-      const cosP = Math.cos(camPitch);
-      const sinP = Math.sin(camPitch);
-      const rz = cz * cosP - ry * sinP;
-      const rDepth = ry * cosP + cz * sinP;
-      const depth = camDist + rDepth;
+      // 3. Camera Up = Right x Forward
+      const ux = ry * fz - rz * fy;
+      const uy = rz * fx - rx * fz;
+      const uz = rx * fy - ry * fx;
 
-      if (depth <= 0.5) return { x: -9999, y: -9999, scale: 0, depth: depth, visible: false };
+      // 4. Point in Camera Coordinates
+      const dx = x - camPosX;
+      const dy = y - camPosY;
+      const dz = (z || 0) - camPosZ;
 
-      const fov = Math.min(W, H) * (camFovMult || 1.6);
-      const px = (W / 2) + (rx * fov) / depth;
-      const py = (H / 2) - (rz * fov) / depth + (H * camOffsetY);
-      const scale = fov / depth;
+      const xCam = dx * rx + dy * ry + dz * rz;
+      const yCam = dx * ux + dy * uy + dz * uz;
+      const zCam = dx * fx + dy * fy + dz * fz;
 
-      return { x: px, y: py, scale: scale, depth: depth, visible: true };
+      if (zCam <= 1.0) return { x: -9999, y: -9999, scale: 0, depth: zCam, visible: false };
+
+      // 5. Focal Length from Field of View
+      const fovRad = (camFov * Math.PI) / 180;
+      const focal = (H / 2) / Math.tan(fovRad / 2);
+
+      // 6. Screen Projection: Ground is strictly at the BOTTOM, Height (z) grows toward TOP
+      const px = (W / 2) + (xCam / zCam) * focal;
+      const py = (H / 2) - (yCam / zCam) * focal;
+      const scale = Math.min(1.8, Math.max(0.12, focal / zCam));
+
+      return { x: px, y: py, scale: scale, depth: zCam, visible: true };
     }
 
     // High-Fidelity Universal 3D Stadium Projection Engine
@@ -1849,25 +1886,25 @@ HTML_TEMPLATE = """
             ctx2D.fill();
           }
 
-          // H. Floating Glassmorphic HUD Player Badge (#NUM Name)
+          // H. Compact Circular Number Badge (Never Huge, Clean Broadcast Look)
           if (headPr.visible) {
-            ctx2D.font = `bold ${Math.max(8, Math.round(9.5 * sc))}px 'JetBrains Mono', monospace`;
-            const nameStr = `#${num} ${name}`;
-            const pNameW = ctx2D.measureText(nameStr).width;
-            const pillY = headPr.y - 12 * sc;
+            const bR = Math.min(8.0, Math.max(4.0, 4.5 * sc));
+            const pillY = headPr.y - bR * 1.6;
 
-            ctx2D.fillStyle = 'rgba(15, 23, 42, 0.88)';
+            ctx2D.fillStyle = isHome ? 'rgba(220, 38, 38, 0.90)' : 'rgba(234, 179, 8, 0.90)';
             ctx2D.beginPath();
-            ctx2D.roundRect(headPr.x - pNameW / 2 - 4, pillY - 7, pNameW + 8, 14, 3);
+            ctx2D.arc(headPr.x, pillY, bR, 0, Math.PI * 2);
             ctx2D.fill();
 
-            ctx2D.strokeStyle = isHome ? 'rgba(239, 68, 68, 0.5)' : 'rgba(234, 179, 8, 0.5)';
+            ctx2D.strokeStyle = 'rgba(255, 255, 255, 0.85)';
             ctx2D.lineWidth = 1.0;
             ctx2D.stroke();
 
+            ctx2D.font = `bold ${Math.min(9, Math.max(6, Math.round(bR * 1.3)))}px 'JetBrains Mono', monospace`;
             ctx2D.fillStyle = '#ffffff';
+            ctx2D.textAlign = 'center';
             ctx2D.textBaseline = 'middle';
-            ctx2D.fillText(nameStr, headPr.x, pillY);
+            ctx2D.fillText(num, headPr.x, pillY + 0.5);
           }
 
         } else if (item.type === 'ball') {
@@ -1878,7 +1915,7 @@ HTML_TEMPLATE = """
           if (!bPr.visible || bPr.depth <= 0) return;
 
           const sc = bPr.scale;
-          const rad = Math.max(3.2, 5.8 * sc);
+          const rad = Math.min(4.8, Math.max(1.8, 2.8 * sc));
 
           // Ball Ground Drop Shadow
           if (sPr.visible) {
@@ -2716,14 +2753,15 @@ HTML_TEMPLATE = """
       const by = f ? f.ball.y : 34.0;
 
       if (mode === 'broadcast') {
-        // Authentic TV Broadcast View (Flipped 180° to grandstand TV perspective, not bird-eye, not flat)
-        camYaw = Math.PI;
-        camPitch = 0.42;
-        camDist = 82.0;
+        // Authentic TV Broadcast View (Grandstand TV perspective, ground at bottom, never hanging)
+        orbitYaw = 0.0;
+        orbitPitch = 0.44; // ~25° elevation
+        orbitDist = 84.0;
         camTargetX = 52.5;
         camTargetY = 34.0;
-        camFovMult = 1.45;
-        camOffsetY = 0.0;
+        camTargetZ = 0.0;
+        camFov = 42.0;
+        updateCameraPositionFromOrbit();
         if (threeInitialized && camera && controls) {
           camera.fov = 40;
           camera.updateProjectionMatrix();
@@ -2737,18 +2775,18 @@ HTML_TEMPLATE = """
         const spd = Math.hypot(p.vx || 0, p.vy || 0);
         const fac = (spd > 0.3) ? Math.atan2(p.vy, p.vx) : (p.team === 'Home' ? 0 : Math.PI);
         const fc = Math.cos(fac), fs = Math.sin(fac);
-        camTargetX = p.x + fc * 12;
-        camTargetY = p.y + fs * 12;
-        camYaw = fac - Math.PI / 2;
-        camPitch = 0.22;
-        camDist = 8.0;
-        camFovMult = 2.0;
-        camOffsetY = 0.04;
+        camPosX = p.x - fc * 8.5;
+        camPosY = p.y - fs * 8.5;
+        camPosZ = 3.6;
+        camTargetX = p.x + fc * 14;
+        camTargetY = p.y + fs * 14;
+        camTargetZ = 1.2;
+        camFov = 52.0;
         if (threeInitialized && camera && controls) {
-          camera.fov = 58;
+          camera.fov = 52;
           camera.updateProjectionMatrix();
-          camera.position.set(p.x - fc * 6.5, p.y - fs * 6.5, 2.8);
-          controls.target.set(p.x + fc * 12, p.y + fs * 12, 1.2);
+          camera.position.set(camPosX, camPosY, camPosZ);
+          controls.target.set(camTargetX, camTargetY, camTargetZ);
           controls.update();
         }
       } else if (mode === 'duel') {
@@ -2760,28 +2798,29 @@ HTML_TEMPLATE = """
         if (p1 && p2) {
           duelAngle = Math.atan2(p2.y - p1.y, p2.x - p1.x) - Math.PI / 2;
         }
+        camPosX = mx + Math.cos(duelAngle) * 9.5;
+        camPosY = my + Math.sin(duelAngle) * 9.5;
+        camPosZ = 4.0;
         camTargetX = mx;
         camTargetY = my;
-        camPitch = 0.24;
-        camDist = 10.0;
-        camFovMult = 2.0;
-        camOffsetY = 0.04;
+        camTargetZ = 1.0;
+        camFov = 50.0;
         if (threeInitialized && camera && controls) {
-          camera.fov = 56;
+          camera.fov = 50;
           camera.updateProjectionMatrix();
-          camera.position.set(mx + Math.cos(duelAngle) * 8.5, my + Math.sin(duelAngle) * 8.5, 3.2);
-          controls.target.set(mx, my, 1.2);
+          camera.position.set(camPosX, camPosY, camPosZ);
+          controls.target.set(camTargetX, camTargetY, camTargetZ);
           controls.update();
         }
       } else if (mode === 'action') {
-        // Dynamic Follow Ball (Sideline gliding with possession at long-range TV height)
-        camYaw = Math.PI;
-        camPitch = 0.42;
-        camDist = 82.0;
+        // Dynamic Follow Ball (Sideline gliding with possession at TV height)
         camTargetX = bx;
         camTargetY = 34.0;
-        camFovMult = 1.45;
-        camOffsetY = 0.0;
+        camTargetZ = 0.0;
+        camPosX = bx;
+        camPosY = -48.0;
+        camPosZ = 38.0;
+        camFov = 42.0;
         if (threeInitialized && camera && controls) {
           camera.fov = 40;
           camera.updateProjectionMatrix();
@@ -2790,33 +2829,34 @@ HTML_TEMPLATE = """
           controls.update();
         }
       } else if (mode === 'goal') {
-        // Behind Goal (Endzone view looking forward through posts)
-        camYaw = -Math.PI / 2;
-        camPitch = 0.22;
-        camDist = 60.0;
+        // Behind Goal (Endzone TV camera looking forward through posts, ground strictly at bottom)
+        camPosX = -14.0;
+        camPosY = 34.0;
+        camPosZ = 5.5;
         camTargetX = 52.5;
         camTargetY = 34.0;
-        camFovMult = 1.9;
-        camOffsetY = 0.02;
+        camTargetZ = 1.2;
+        camFov = 48.0;
         if (threeInitialized && camera && controls) {
-          camera.fov = 56;
+          camera.fov = 48;
           camera.updateProjectionMatrix();
-          camera.position.set(-14.0, 34.0, 4.5);
-          controls.target.set(52.5, 34.0, 1.5);
+          camera.position.set(-14.0, 34.0, 5.5);
+          controls.target.set(52.5, 34.0, 1.2);
           controls.update();
         }
       } else if (mode === 'dugout') {
         // Sideline Pitch-Level Dugout (Manager eye level)
-        camPitch = 0.12;
-        camDist = 38.0;
+        camPosX = bx;
+        camPosY = -6.0;
+        camPosZ = 2.4;
         camTargetX = bx;
         camTargetY = 34.0;
-        camFovMult = 1.8;
-        camOffsetY = 0.02;
+        camTargetZ = 1.2;
+        camFov = 52.0;
         if (threeInitialized && camera && controls) {
-          camera.fov = 58;
+          camera.fov = 52;
           camera.updateProjectionMatrix();
-          camera.position.set(bx, -6.0, 2.2);
+          camera.position.set(bx, -6.0, 2.4);
           controls.target.set(bx, 34.0, 1.2);
           controls.update();
         }
