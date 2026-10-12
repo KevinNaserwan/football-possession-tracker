@@ -199,7 +199,7 @@ HTML_TEMPLATE = """
       position: absolute;
       top: 0;
       left: 0;
-      display: none;
+      display: block;
     }
     #pitch-2d-canvas {
       width: 100%;
@@ -207,7 +207,7 @@ HTML_TEMPLATE = """
       position: absolute;
       top: 0;
       left: 0;
-      display: block;
+      display: none;
     }
     .hud-overlay {
       position: absolute;
@@ -447,13 +447,16 @@ HTML_TEMPLATE = """
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0x06090e);
 
-        const aspect = (container.clientWidth && container.clientHeight) ? (container.clientWidth / container.clientHeight) : (105 / 68);
+        const stageEl = document.querySelector('.view-stage');
+        const initW = (stageEl ? stageEl.clientWidth : 0) || container.clientWidth || 1050;
+        const initH = (stageEl ? stageEl.clientHeight : 0) || container.clientHeight || 520;
+        const aspect = initW / initH;
         camera = new THREE.PerspectiveCamera(45, aspect, 0.1, 1000);
         camera.position.set(52.5, -60, 65);
         camera.up.set(0, 0, 1);
 
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'default' });
-        renderer.setSize(container.clientWidth || 1050, container.clientHeight || 520);
+        renderer.setSize(initW, initH);
         renderer.shadowMap.enabled = true;
         container.appendChild(renderer.domElement);
 
@@ -840,9 +843,26 @@ HTML_TEMPLATE = """
       document.getElementById('btn-view-3d').classList.toggle('active', view === '3d');
       document.getElementById('btn-view-2d').classList.toggle('active', view === '2d');
       
-      document.getElementById('three-canvas-container').style.display = view === '3d' ? 'block' : 'none';
-      document.getElementById('pitch-2d-canvas').style.display = view === '2d' ? 'block' : 'none';
-      document.getElementById('hud-camera-info').style.display = view === '3d' ? 'block' : 'none';
+      const cont3d = document.getElementById('three-canvas-container');
+      const cvs2d = document.getElementById('pitch-2d-canvas');
+      const hudCam = document.getElementById('hud-camera-info');
+
+      cont3d.style.display = view === '3d' ? 'block' : 'none';
+      cvs2d.style.display = view === '2d' ? 'block' : 'none';
+      if (hudCam) hudCam.style.display = view === '3d' ? 'block' : 'none';
+
+      if (view === '3d' && threeInitialized && renderer && camera) {
+        const stage = document.querySelector('.view-stage');
+        const w = (stage ? stage.clientWidth : 0) || cont3d.clientWidth || 1050;
+        const h = (stage ? stage.clientHeight : 0) || cont3d.clientHeight || 520;
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
+        renderer.render(scene, camera);
+      } else if (view === '2d') {
+        resizeCanvas();
+      }
+
       render(currentFrame);
     }
 
@@ -878,8 +898,10 @@ HTML_TEMPLATE = """
       }
     }
 
-    // Auto check if Three.js initialized successfully, otherwise default to 2D
-    if (!threeInitialized) {
+    // Initialize active view layout and renderers
+    if (threeInitialized) {
+      switchView('3d');
+    } else {
       console.warn("Three.js not initialized; defaulting activeView to 2d");
       switchView('2d');
     }
