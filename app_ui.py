@@ -949,19 +949,36 @@ HTML_TEMPLATE = """
       }
       scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(circlePts), lineMat));
 
-      function addGoal(x, yMin, yMax) {
-        const goalMat = new THREE.LineBasicMaterial({ color: 0xe5e7eb, linewidth: 2 });
+      function addGoal(x, yMin, yMax, dir) {
+        const postMat = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 3 });
         const postH = 2.44;
+        const depth = dir * 2.5;
+
+        // Front Goal Mouth
         const gPts = [
           new THREE.Vector3(x, yMin, 0),
           new THREE.Vector3(x, yMin, postH),
           new THREE.Vector3(x, yMax, postH),
           new THREE.Vector3(x, yMax, 0)
         ];
-        scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(gPts), goalMat));
+        scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(gPts), postMat));
+
+        // Back Netting Box
+        const netMat = new THREE.LineBasicMaterial({ color: 0x94a3b8, transparent: true, opacity: 0.5 });
+        const netPts = [
+          new THREE.Vector3(x, yMin, postH),
+          new THREE.Vector3(x + depth, yMin, postH * 0.8),
+          new THREE.Vector3(x + depth, yMax, postH * 0.8),
+          new THREE.Vector3(x, yMax, postH),
+          new THREE.Vector3(x + depth, yMax, postH * 0.8),
+          new THREE.Vector3(x + depth, yMax, 0),
+          new THREE.Vector3(x + depth, yMin, 0),
+          new THREE.Vector3(x + depth, yMin, postH * 0.8)
+        ];
+        scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(netPts), netMat));
       }
-      addGoal(0, 30.34, 37.66);
-      addGoal(105, 30.34, 37.66);
+      addGoal(0, 30.34, 37.66, -1);
+      addGoal(105, 30.34, 37.66, 1);
     }
     if (threeInitialized) create3DPitchLines();
 
@@ -979,6 +996,16 @@ HTML_TEMPLATE = """
       );
       ballShadow.position.set(0, 0, 0.03);
       scene.add(ballShadow);
+
+      // Continuous Animation Loop for smooth 3D OrbitControls and rendering
+      function animateThree() {
+        requestAnimationFrame(animateThree);
+        if (controls) controls.update();
+        if (activeView === '3d' && renderer && scene && camera) {
+          renderer.render(scene, camera);
+        }
+      }
+      animateThree();
     }
 
     function getOrCreatePlayerMesh(id, team) {
@@ -1647,7 +1674,11 @@ HTML_TEMPLATE = """
 
       // Render Active Viewport on Canvas
       if (activeView === '3d') {
-        if (!threeInitialized) {
+        if (threeInitialized) {
+          if (renderer && scene && camera) {
+            renderer.render(scene, camera);
+          }
+        } else {
           render3DStadium(f);
         }
       } else {
