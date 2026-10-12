@@ -2457,14 +2457,46 @@ HTML_TEMPLATE = """
         ctx2D.font = "bold 8px 'JetBrains Mono', monospace";
         ctx2D.textAlign = "center";
         ctx2D.textBaseline = "middle";
+        // Action Visuals: Sliding Tackle & Foul Fall & Shooting Kick
+        const action = p.action || "NORMAL";
+        if (action === "SLIDING_TACKLE") {
+          // Slide streak dust on pitch
+          ctx2D.fillStyle = "rgba(255, 255, 255, 0.4)";
+          ctx2D.beginPath();
+          ctx2D.ellipse(sx - 12, sy + 4, 14, 4, -0.2, 0, Math.PI * 2);
+          ctx2D.fill();
+          // Lowered body and extended sliding leg
+          ctx2D.strokeStyle = kitSec;
+          ctx2D.lineWidth = 4;
+          ctx2D.beginPath();
+          ctx2D.moveTo(sx - 6, sy + 3);
+          ctx2D.lineTo(sx + 15, sy + 6); // Slide lead leg
+          ctx2D.stroke();
+        } else if (action === "FOUL_FALL") {
+          // Tumbled fallen pose
+          ctx2D.strokeStyle = "rgba(239, 68, 68, 0.8)";
+          ctx2D.lineWidth = 2;
+          ctx2D.beginPath();
+          ctx2D.arc(sx, sy, 11, 0, Math.PI * 2);
+          ctx2D.stroke();
+        } else if (action === "SHOOTING_KICK") {
+          // Kicking leg follow-through
+          ctx2D.strokeStyle = "#ffffff";
+          ctx2D.lineWidth = 3.5;
+          ctx2D.beginPath();
+          ctx2D.moveTo(sx, sy);
+          ctx2D.lineTo(sx + 8, sy - 4);
+          ctx2D.stroke();
+        }
+
         ctx2D.fillText(num, sx, sy + 0.5);
 
         // Player Name Pill below/above kit
         ctx2D.font = "bold 9px 'JetBrains Mono', monospace";
         const textW = ctx2D.measureText(name).width;
-        const pillY = sy - 14;
+        const pillY = (action === "SLIDING_TACKLE") ? sy - 18 : sy - 14;
 
-        ctx2D.fillStyle = "rgba(15, 23, 42, 0.85)";
+        ctx2D.fillStyle = (action === "SLIDING_TACKLE") ? "rgba(239, 68, 68, 0.9)" : "rgba(15, 23, 42, 0.85)";
         ctx2D.beginPath();
         ctx2D.roundRect(sx - textW / 2 - 4, pillY - 7, textW + 8, 13, 3);
         ctx2D.fill();
@@ -2475,7 +2507,7 @@ HTML_TEMPLATE = """
 
         ctx2D.fillStyle = "#ffffff";
         ctx2D.textBaseline = "middle";
-        ctx2D.fillText(name, sx, pillY - 0.5);
+        ctx2D.fillText((action === "SLIDING_TACKLE" ? "⚡ " + name : name), sx, pillY - 0.5);
       }
 
       // Draw all players
@@ -2670,6 +2702,15 @@ HTML_TEMPLATE = """
               if (mesh.userData && mesh.userData.leftLeg && mesh.userData.rightLeg) {
                 mesh.userData.leftLeg.rotation.x = -0.8;
                 mesh.userData.rightLeg.rotation.x = 0.5;
+              }
+            } else if (action === "SHOOTING_KICK") {
+              // Powerful strike follow-through pose
+              mesh.position.z = 0.0;
+              mesh.rotation.x = -0.15;
+              mesh.rotation.y = 0;
+              if (mesh.userData && mesh.userData.leftLeg && mesh.userData.rightLeg) {
+                mesh.userData.rightLeg.rotation.x = 1.05; // Kicking right leg forward
+                mesh.userData.leftLeg.rotation.x = -0.45; // Planted left leg back
               }
             } else {
               // Normal upright stance and running stride
