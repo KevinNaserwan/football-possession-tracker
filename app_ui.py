@@ -862,8 +862,8 @@ HTML_TEMPLATE = """
         const initW = window.innerWidth;
         const initH = window.innerHeight;
         const aspect = initW / initH;
-        camera = new THREE.PerspectiveCamera(38, aspect, 0.1, 1000);
-        camera.position.set(52.5, -50.0, 54.0);
+        camera = new THREE.PerspectiveCamera(40, aspect, 0.1, 1000);
+        camera.position.set(52.5, 118.0, 36.0);
         camera.up.set(0, 0, 1);
 
         let createdRenderer = null;
@@ -887,7 +887,7 @@ HTML_TEMPLATE = """
 
         if (THREE.OrbitControls) {
           controls = new THREE.OrbitControls(camera, renderer.domElement);
-          controls.target.set(52.5, 34.0, 0.0);
+          controls.target.set(52.5, 34.0, 1.0);
           controls.enableDamping = true;
           controls.dampingFactor = 0.05;
           controls.enableZoom = true;
@@ -898,8 +898,8 @@ HTML_TEMPLATE = """
           controls.rotateSpeed = 0.9;
           controls.enablePan = true;
           controls.panSpeed = 0.8;
-          controls.maxPolarAngle = Math.PI / 2.02;
-          controls.minPolarAngle = 0.05;
+          controls.maxPolarAngle = Math.PI / 2.0;
+          controls.minPolarAngle = 0.01;
         }
 
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.45);
@@ -1170,8 +1170,8 @@ HTML_TEMPLATE = """
       const tex = new THREE.CanvasTexture(cvs);
       const spriteMat = new THREE.SpriteMaterial({ map: tex, transparent: true });
       const sprite = new THREE.Sprite(spriteMat);
-      sprite.scale.set(0.75, 0.75, 1);
-      sprite.position.z = 2.10;
+      sprite.scale.set(0.35, 0.35, 1);
+      sprite.position.z = 2.15;
       return sprite;
     }
 
@@ -1293,8 +1293,8 @@ HTML_TEMPLATE = """
       pGroup.add(nameSprite);
       pGroup.userData.nameSprite = nameSprite;
 
-      // Natural true-to-scale player proportions for realistic broadcast
-      pGroup.scale.set(1.0, 1.0, 1.0);
+      // Realistic TV broadcast player scale (compact & proportional)
+      pGroup.scale.set(0.55, 0.55, 0.55);
 
       scene.add(pGroup);
       playerMeshes[id] = pGroup;
@@ -2261,11 +2261,11 @@ HTML_TEMPLATE = """
         camTargetX += (f.ball.x - camTargetX) * 0.18;
         if (threeInitialized && camera && controls) {
           camera.position.x += (f.ball.x - camera.position.x) * 0.18;
-          camera.position.y = -50.0;
-          camera.position.z = 54.0;
+          camera.position.y = 118.0;
+          camera.position.z = 36.0;
           controls.target.x = camera.position.x;
           controls.target.y = 34.0;
-          controls.target.z = 0.0;
+          controls.target.z = 1.0;
         }
       } else if (currentCamPreset === 'pro') {
         const p = getActiveBallPlayer(f);
@@ -2716,19 +2716,19 @@ HTML_TEMPLATE = """
       const by = f ? f.ball.y : 34.0;
 
       if (mode === 'broadcast') {
-        // FIFA Pitch Broadcast (Long-range TV telephoto camera capturing entire 22 players and both goals)
-        camYaw = 0.0;
-        camPitch = 0.58;
-        camDist = 88.0;
+        // Authentic TV Broadcast View (Flipped 180° to grandstand TV perspective, not bird-eye, not flat)
+        camYaw = Math.PI;
+        camPitch = 0.42;
+        camDist = 82.0;
         camTargetX = 52.5;
         camTargetY = 34.0;
         camFovMult = 1.45;
         camOffsetY = 0.0;
         if (threeInitialized && camera && controls) {
-          camera.fov = 38;
+          camera.fov = 40;
           camera.updateProjectionMatrix();
-          camera.position.set(52.5, -50.0, 54.0);
-          controls.target.set(52.5, 34.0, 0.0);
+          camera.position.set(52.5, 118.0, 36.0);
+          controls.target.set(52.5, 34.0, 1.0);
           controls.update();
         }
       } else if (mode === 'pro') {
@@ -2775,18 +2775,18 @@ HTML_TEMPLATE = """
         }
       } else if (mode === 'action') {
         // Dynamic Follow Ball (Sideline gliding with possession at long-range TV height)
-        camYaw = 0.0;
-        camPitch = 0.58;
-        camDist = 88.0;
+        camYaw = Math.PI;
+        camPitch = 0.42;
+        camDist = 82.0;
         camTargetX = bx;
         camTargetY = 34.0;
         camFovMult = 1.45;
         camOffsetY = 0.0;
         if (threeInitialized && camera && controls) {
-          camera.fov = 38;
+          camera.fov = 40;
           camera.updateProjectionMatrix();
-          camera.position.set(bx, -50.0, 54.0);
-          controls.target.set(bx, 34.0, 0.0);
+          camera.position.set(bx, 118.0, 36.0);
+          controls.target.set(bx, 34.0, 1.0);
           controls.update();
         }
       } else if (mode === 'goal') {
