@@ -199,6 +199,7 @@ HTML_TEMPLATE = """
       position: absolute;
       top: 0;
       left: 0;
+      display: none;
     }
     #pitch-2d-canvas {
       width: 100%;
@@ -206,7 +207,7 @@ HTML_TEMPLATE = """
       position: absolute;
       top: 0;
       left: 0;
-      display: none;
+      display: block;
     }
     .hud-overlay {
       position: absolute;
@@ -432,30 +433,38 @@ HTML_TEMPLATE = """
     const playerMeshes = {};
     let threeInitialized = false;
 
-    try {
-      if (typeof THREE !== 'undefined') {
+    function isWebGLSupported() {
+      try {
+        const testCanvas = document.createElement('canvas');
+        return !!(window.WebGLRenderingContext && (testCanvas.getContext('webgl') || testCanvas.getContext('experimental-webgl')));
+      } catch (e) {
+        return false;
+      }
+    }
+
+    if (isWebGLSupported() && typeof THREE !== 'undefined') {
+      try {
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0x06090e);
 
         const aspect = (container.clientWidth && container.clientHeight) ? (container.clientWidth / container.clientHeight) : (105 / 68);
         camera = new THREE.PerspectiveCamera(45, aspect, 0.1, 1000);
-        camera.position.set(52.5, -60, 65); // Angled stadium broadcast view
-        camera.up.set(0, 0, 1); // Z is vertical height!
+        camera.position.set(52.5, -60, 65);
+        camera.up.set(0, 0, 1);
 
-        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        renderer.setSize(container.clientWidth || 1050, container.clientHeight || 680);
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'default' });
+        renderer.setSize(container.clientWidth || 1050, container.clientHeight || 520);
         renderer.shadowMap.enabled = true;
         container.appendChild(renderer.domElement);
 
         if (THREE.OrbitControls) {
           controls = new THREE.OrbitControls(camera, renderer.domElement);
-          controls.target.set(52.5, 34, 0); // Pitch center
+          controls.target.set(52.5, 34, 0);
           controls.enableDamping = true;
           controls.dampingFactor = 0.05;
-          controls.maxPolarAngle = Math.PI / 2.05; // Prevent camera clipping below ground
+          controls.maxPolarAngle = Math.PI / 2.05;
         }
 
-        // Lighting: Stadium floodlights
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
         scene.add(ambientLight);
 
@@ -464,12 +473,10 @@ HTML_TEMPLATE = """
         dirLight.castShadow = true;
         scene.add(dirLight);
 
-        // Secondary floodlight for stadium ambience
         const dirLight2 = new THREE.DirectionalLight(0xa7f3d0, 0.4);
         dirLight2.position.set(52.5, 110, 80);
         scene.add(dirLight2);
 
-        // 3D Pitch Turf Mesh (105m x 68m) - Vibrant Pitch Grass
         const pitchGeometry = new THREE.PlaneGeometry(105, 68);
         const pitchMaterial = new THREE.MeshStandardMaterial({
           color: 0x1b4d2e,
@@ -481,18 +488,18 @@ HTML_TEMPLATE = """
         pitchMesh.position.set(52.5, 34, 0);
         scene.add(pitchMesh);
 
-        // Stadium Pitch Surrounding Border / Sidewalk Turf
         const outerGeo = new THREE.PlaneGeometry(125, 84);
         const outerMat = new THREE.MeshStandardMaterial({ color: 0x0f2918, roughness: 0.9, side: THREE.DoubleSide });
         const outerMesh = new THREE.Mesh(outerGeo, outerMat);
         outerMesh.position.set(52.5, 34, -0.05);
         scene.add(outerMesh);
         threeInitialized = true;
-      } else {
-        console.warn("THREE is not defined, falling back to 2D canvas");
+      } catch (e) {
+        console.warn("Three.js WebGL context creation failed; falling back to 2D Planar:", e);
+        threeInitialized = false;
       }
-    } catch (e) {
-      console.error("Three.js initialization failed:", e);
+    } else {
+      console.log("WebGL not available or disabled; using High-Fidelity 2D Broadcast Pitch");
       threeInitialized = false;
     }
 
@@ -501,7 +508,6 @@ HTML_TEMPLATE = """
       if (!threeInitialized) return;
       const lineMat = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 2 });
       
-      // Perimeter
       const points = [
         new THREE.Vector3(0, 0, 0.02),
         new THREE.Vector3(105, 0, 0.02),
@@ -511,11 +517,9 @@ HTML_TEMPLATE = """
       ];
       scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), lineMat));
 
-      // Halfway
       const halfPts = [new THREE.Vector3(52.5, 0, 0.02), new THREE.Vector3(52.5, 68, 0.02)];
       scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(halfPts), lineMat));
 
-      // Center circle
       const circlePts = [];
       for (let i = 0; i <= 64; i++) {
         const theta = (i / 64) * Math.PI * 2;
@@ -523,10 +527,9 @@ HTML_TEMPLATE = """
       }
       scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(circlePts), lineMat));
 
-      // Goal nets (3D Goals!)
       function addGoal(x, yMin, yMax) {
         const goalMat = new THREE.LineBasicMaterial({ color: 0xe5e7eb, linewidth: 2 });
-        const postH = 2.44; // 2.44m standard goal height
+        const postH = 2.44;
         const gPts = [
           new THREE.Vector3(x, yMin, 0),
           new THREE.Vector3(x, yMin, postH),
@@ -561,9 +564,8 @@ HTML_TEMPLATE = """
       if (!playerMeshes[id]) {
         const group = new THREE.Group();
         
-        // 3D Player Capsule/Cylinder Body
         const bodyGeo = new THREE.CylinderGeometry(0.4, 0.4, 1.75, 12);
-        bodyGeo.rotateX(Math.PI / 2); // Orient upright along Z
+        bodyGeo.rotateX(Math.PI / 2);
         const bodyMat = new THREE.MeshStandardMaterial({
           color: team === 'Home' ? 0xef4444 : 0x3b82f6,
           roughness: 0.4
@@ -572,7 +574,6 @@ HTML_TEMPLATE = """
         body.position.z = 0.88;
         group.add(body);
 
-        // Head
         const headGeo = new THREE.SphereGeometry(0.32, 12, 12);
         const headMat = new THREE.MeshStandardMaterial({ color: 0xfde047 });
         const head = new THREE.Mesh(headGeo, headMat);
@@ -593,48 +594,172 @@ HTML_TEMPLATE = """
     }
     if (threeInitialized) animate3D();
 
-    // ---------------- 2D CANVAS FALLBACK ----------------
+    // ---------------- 2D BROADCAST PITCH ENGINE (HIGH RESOLUTION) ----------------
     const canvas2D = document.getElementById('pitch-2d-canvas');
     const ctx2D = canvas2D.getContext('2d');
-    const SCALE_X = canvas2D.width / 105;
-    const SCALE_Y = canvas2D.height / 68;
+
+    function resizeCanvas() {
+      const rect = canvas2D.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas2D.width = Math.round((rect.width || 1050) * dpr);
+      canvas2D.height = Math.round((rect.height || 520) * dpr);
+    }
+    resizeCanvas();
 
     function render2D(frameData) {
-      ctx2D.fillStyle = "#0c381a";
-      ctx2D.fillRect(0, 0, canvas2D.width, canvas2D.height);
+      if (!canvas2D.width || !canvas2D.height) resizeCanvas();
+      const W = canvas2D.width;
+      const H = canvas2D.height;
+      const PITCH_W = 105.0;
+      const PITCH_H = 68.0;
 
-      // Lines
-      ctx2D.strokeStyle = "rgba(255, 255, 255, 0.8)";
-      ctx2D.lineWidth = 2;
-      ctx2D.strokeRect(0, 0, canvas2D.width, canvas2D.height);
+      // Inner pitch margins
+      const padX = W * 0.04;
+      const padY = H * 0.05;
+      const pW = W - (padX * 2);
+      const pH = H - (padY * 2);
+
+      const sx = (x) => padX + (x / PITCH_W) * pW;
+      const sy = (y) => padY + ((PITCH_H - y) / PITCH_H) * pH;
+      const scaleM = pW / PITCH_W;
+
+      // 1. Surrounding Stadium Grass / Border
+      ctx2D.fillStyle = "#0c2814";
+      ctx2D.fillRect(0, 0, W, H);
+
+      // 2. Main Pitch Turf with Camp Nou Striped Pattern (10 vertical grass bands)
+      const numBands = 10;
+      const bandWidth = pW / numBands;
+      for (let i = 0; i < numBands; i++) {
+        ctx2D.fillStyle = (i % 2 === 0) ? "#14532d" : "#166534";
+        ctx2D.fillRect(padX + (i * bandWidth), padY, bandWidth, pH);
+      }
+
+      // 3. Pitch Boundary & Line Markings
+      ctx2D.strokeStyle = "rgba(255, 255, 255, 0.88)";
+      ctx2D.lineWidth = Math.max(2, 2.2 * (W / 1200));
+
+      // Perimeter
+      ctx2D.strokeRect(padX, padY, pW, pH);
+
+      // Halfway Line
       ctx2D.beginPath();
-      ctx2D.moveTo(canvas2D.width / 2, 0);
-      ctx2D.lineTo(canvas2D.width / 2, canvas2D.height);
+      ctx2D.moveTo(sx(52.5), sy(0));
+      ctx2D.lineTo(sx(52.5), sy(68));
       ctx2D.stroke();
+
+      // Center Circle (9.15m radius) & Center Spot
       ctx2D.beginPath();
-      ctx2D.arc(canvas2D.width / 2, canvas2D.height / 2, 9.15 * SCALE_X, 0, Math.PI * 2);
+      ctx2D.arc(sx(52.5), sy(34), 9.15 * scaleM, 0, Math.PI * 2);
       ctx2D.stroke();
 
-      // Players
-      frameData.players.forEach(p => {
-        const cx = p.x * SCALE_X;
-        const cy = (68 - p.y) * SCALE_Y;
-        ctx2D.fillStyle = p.team === 'Home' ? "#ef4444" : "#3b82f6";
-        ctx2D.beginPath();
-        ctx2D.arc(cx, cy, 8, 0, Math.PI * 2);
-        ctx2D.fill();
-        ctx2D.fillStyle = "#fff";
-        ctx2D.font = "bold 9px 'JetBrains Mono'";
-        ctx2D.fillText(p.id, cx - 6, cy - 10);
-      });
-
-      // Ball
-      const bx = frameData.ball.x * SCALE_X;
-      const by = (68 - frameData.ball.y) * SCALE_Y;
       ctx2D.fillStyle = "#ffffff";
       ctx2D.beginPath();
-      ctx2D.arc(bx, by, 6, 0, Math.PI * 2);
+      ctx2D.arc(sx(52.5), sy(34), 3 * (W / 1200), 0, Math.PI * 2);
       ctx2D.fill();
+
+      // Penalty Boxes (16.5m depth, 40.32m width -> y from 13.84 to 54.16)
+      // Home Box (Left)
+      ctx2D.strokeRect(sx(0), sy(54.16), 16.5 * scaleM, 40.32 * scaleM);
+      // Home 6-yard Box (5.5m depth, 18.32m width -> y from 24.84 to 43.16)
+      ctx2D.strokeRect(sx(0), sy(43.16), 5.5 * scaleM, 18.32 * scaleM);
+      // Home Penalty Spot (11m) & Arc
+      ctx2D.beginPath();
+      ctx2D.arc(sx(11), sy(34), 2.5 * (W / 1200), 0, Math.PI * 2);
+      ctx2D.fill();
+      ctx2D.beginPath();
+      ctx2D.arc(sx(11), sy(34), 9.15 * scaleM, -0.92, 0.92);
+      ctx2D.stroke();
+
+      // Away Box (Right)
+      ctx2D.strokeRect(sx(105 - 16.5), sy(54.16), 16.5 * scaleM, 40.32 * scaleM);
+      // Away 6-yard Box
+      ctx2D.strokeRect(sx(105 - 5.5), sy(43.16), 5.5 * scaleM, 18.32 * scaleM);
+      // Away Penalty Spot & Arc
+      ctx2D.beginPath();
+      ctx2D.arc(sx(105 - 11), sy(34), 2.5 * (W / 1200), 0, Math.PI * 2);
+      ctx2D.fill();
+      ctx2D.beginPath();
+      ctx2D.arc(sx(105 - 11), sy(34), 9.15 * scaleM, Math.PI - 0.92, Math.PI + 0.92);
+      ctx2D.stroke();
+
+      // Goal Nets (7.32m width -> y from 30.34 to 37.66)
+      ctx2D.fillStyle = "rgba(255, 255, 255, 0.2)";
+      ctx2D.fillRect(sx(0) - (2.4 * scaleM), sy(37.66), 2.4 * scaleM, 7.32 * scaleM);
+      ctx2D.strokeRect(sx(0) - (2.4 * scaleM), sy(37.66), 2.4 * scaleM, 7.32 * scaleM);
+      ctx2D.fillRect(sx(105), sy(37.66), 2.4 * scaleM, 7.32 * scaleM);
+      ctx2D.strokeRect(sx(105), sy(37.66), 2.4 * scaleM, 7.32 * scaleM);
+
+      // Corner Arcs (1m radius)
+      const cR = 1.0 * scaleM;
+      [[0, 0, 0, Math.PI / 2], [105, 0, Math.PI / 2, Math.PI], [105, 68, Math.PI, 1.5 * Math.PI], [0, 68, 1.5 * Math.PI, 2 * Math.PI]].forEach(([cx, cy, sA, eA]) => {
+        ctx2D.beginPath();
+        ctx2D.arc(sx(cx), sy(cy), cR, sA, eA);
+        ctx2D.stroke();
+      });
+
+      // 4. Render Ball Shadow (Simulates 3D height in 2D view!)
+      const ballZ = Math.max(0, frameData.ball.z || 0);
+      const bpx = sx(frameData.ball.x);
+      const bpy = sy(frameData.ball.y);
+      const shadowOffset = ballZ * 5.0 * (W / 1200);
+
+      ctx2D.fillStyle = "rgba(0, 0, 0, 0.45)";
+      ctx2D.beginPath();
+      ctx2D.ellipse(bpx + shadowOffset, bpy + shadowOffset, Math.max(4, 7 - ballZ * 0.8), Math.max(2.5, 4.5 - ballZ * 0.5), 0, 0, Math.PI * 2);
+      ctx2D.fill();
+
+      // 5. Render Players with Team Colors & ID Tags
+      frameData.players.forEach(p => {
+        const px = sx(p.x);
+        const py = sy(p.y);
+        const isHome = (p.team === 'Home');
+        const radius = Math.max(7, 9 * (W / 1200));
+
+        // Player Ring / Shadow
+        ctx2D.fillStyle = "rgba(0, 0, 0, 0.35)";
+        ctx2D.beginPath();
+        ctx2D.arc(px + 2, py + 2, radius, 0, Math.PI * 2);
+        ctx2D.fill();
+
+        // Player Circle
+        ctx2D.fillStyle = isHome ? "#ef4444" : "#3b82f6";
+        ctx2D.beginPath();
+        ctx2D.arc(px, py, radius, 0, Math.PI * 2);
+        ctx2D.fill();
+
+        // Highlighting Border
+        ctx2D.strokeStyle = isHome ? "#fca5a5" : "#93c5fd";
+        ctx2D.lineWidth = 1.8;
+        ctx2D.stroke();
+
+        // Player Number / ID
+        ctx2D.fillStyle = "#ffffff";
+        ctx2D.font = `bold ${Math.max(8, 10 * (W / 1200))}px 'JetBrains Mono', sans-serif`;
+        ctx2D.textAlign = "center";
+        ctx2D.textBaseline = "middle";
+        ctx2D.fillText(p.id.replace('Home_', 'H').replace('Away_', 'A'), px, py);
+      });
+
+      // 6. Render Ball (Sphere with highlight & velocity trail)
+      const ballRadius = Math.max(5, (6 + Math.min(6, ballZ * 1.5)) * (W / 1200));
+      
+      // Ball glow if aerial strike
+      if (ballZ > 1.5) {
+        ctx2D.fillStyle = "rgba(250, 204, 21, 0.3)";
+        ctx2D.beginPath();
+        ctx2D.arc(bpx, bpy, ballRadius * 1.8, 0, Math.PI * 2);
+        ctx2D.fill();
+      }
+
+      ctx2D.fillStyle = "#ffffff";
+      ctx2D.beginPath();
+      ctx2D.arc(bpx, bpy, ballRadius, 0, Math.PI * 2);
+      ctx2D.fill();
+
+      ctx2D.strokeStyle = "#111827";
+      ctx2D.lineWidth = 1.5;
+      ctx2D.stroke();
     }
 
     // ---------------- FRAME RENDERER CONTROLLER ----------------
@@ -766,6 +891,8 @@ HTML_TEMPLATE = """
         camera.updateProjectionMatrix();
         renderer.setSize(container.clientWidth, container.clientHeight);
       }
+      resizeCanvas();
+      render(currentFrame);
     });
 
     // Render frame 1 immediately from initial embedded payload!
