@@ -125,51 +125,130 @@ HTML_TEMPLATE = """
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      background-color: var(--bg);
+      background-color: #030508;
       color: var(--text);
       font-family: 'Plus Jakarta Sans', sans-serif;
-      min-height: 100vh;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      margin: 0;
+      padding: 0;
+      position: relative;
+    }
+    #three-canvas-container, #pitch-2d-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 1;
+      display: block;
+    }
+    #pitch-2d-canvas {
+      display: none;
+    }
+
+    /* FLOATING VIDEO-GAME HUD LAYER (100% Fullscreen Overlay) */
+    .hud-layer {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 10;
+      pointer-events: none;
       display: flex;
       flex-direction: column;
-      padding: 16px 24px;
-      overflow-x: hidden;
-    }
-    .header {
-      display: flex;
       justify-content: space-between;
-      align-items: center;
-      margin-bottom: 12px;
-      padding-bottom: 12px;
-      border-bottom: 1px solid var(--border);
-      flex-wrap: wrap;
-      gap: 12px;
+      padding: 12px 18px;
+      box-sizing: border-box;
+      transition: opacity 0.25s ease, transform 0.25s ease;
     }
-    .badge {
-      background: rgba(16, 185, 129, 0.12);
-      color: var(--accent);
-      padding: 4px 10px;
-      border-radius: 9999px;
-      font-size: 0.75rem;
+    .hud-layer.hidden {
+      opacity: 0;
+      pointer-events: none !important;
+      transform: scale(0.98);
+    }
+    .hud-interactive {
+      pointer-events: auto;
+    }
+
+    /* TOP HUD SECTION */
+    .hud-top-bar {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      width: 100%;
+    }
+    .hud-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      pointer-events: auto;
+    }
+    .hud-brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 9px;
+      padding: 6px 12px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+    }
+    .hud-select {
+      background: rgba(15, 23, 42, 0.92);
+      color: #f3f4f6;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 0.80rem;
+      font-weight: 600;
+      cursor: pointer;
+      outline: none;
+      backdrop-filter: blur(14px);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+    }
+    .hud-btn {
+      background: rgba(15, 23, 42, 0.88);
+      color: #e2e8f0;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      padding: 6px 11px;
+      font-size: 0.76rem;
       font-weight: 700;
-      border: 1px solid rgba(16, 185, 129, 0.3);
+      cursor: pointer;
+      backdrop-filter: blur(14px);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+      transition: all 0.15s ease;
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
     }
+    .hud-btn:hover {
+      background: var(--accent);
+      color: #000;
+      border-color: var(--accent);
+      transform: translateY(-1px);
+    }
+
     .view-toggle {
       display: flex;
-      background: rgba(255, 255, 255, 0.05);
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(12px);
       border-radius: 8px;
-      padding: 3px;
-      border: 1px solid var(--border);
+      padding: 2px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
     }
     .view-btn {
       background: transparent;
       border: none;
       color: var(--text-muted);
-      padding: 6px 14px;
+      padding: 5px 11px;
       border-radius: 6px;
-      font-size: 0.82rem;
+      font-size: 0.78rem;
       font-weight: 600;
       cursor: pointer;
       transition: all 0.2s;
@@ -179,19 +258,31 @@ HTML_TEMPLATE = """
       color: #000;
       font-weight: 700;
     }
+
+    .hud-cam-bar {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(12px);
+      padding: 3px 8px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      flex-wrap: wrap;
+    }
     .cam-btn {
       background: rgba(255, 255, 255, 0.08);
       border: 1px solid rgba(255, 255, 255, 0.15);
       color: #94a3b8;
-      padding: 4px 10px;
+      padding: 4px 8px;
       border-radius: 6px;
-      font-size: 0.74rem;
+      font-size: 0.72rem;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.15s ease;
     }
     .cam-btn:hover {
-      background: rgba(255, 255, 255, 0.16);
+      background: rgba(255, 255, 255, 0.18);
       color: #ffffff;
       border-color: rgba(255, 255, 255, 0.35);
     }
@@ -203,42 +294,40 @@ HTML_TEMPLATE = """
       box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
     }
 
-    /* BROADCAST SCOREBOARD (Papan Skor) */
-    .scoreboard-wrap {
+    /* FLOATING BROADCAST SCOREBOARD (Top Center) */
+    .hud-scoreboard-wrap {
       display: flex;
       flex-direction: column;
       align-items: center;
-      margin-bottom: 12px;
-      gap: 8px;
-      width: 100%;
+      gap: 5px;
+      pointer-events: auto;
     }
     .scoreboard-card {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      background: linear-gradient(135deg, rgba(17, 24, 39, 0.94), rgba(15, 23, 42, 0.98));
-      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(11, 15, 25, 0.96));
+      border: 1px solid rgba(255, 255, 255, 0.16);
       border-radius: 12px;
-      padding: 10px 22px;
-      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.6), 0 0 1px rgba(255, 255, 255, 0.2);
-      width: 100%;
-      max-width: 860px;
-      backdrop-filter: blur(12px);
+      padding: 7px 18px;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.7), 0 0 1px rgba(255, 255, 255, 0.3);
+      width: 480px;
+      backdrop-filter: blur(16px);
     }
     .sb-team {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
       flex: 1;
     }
     .sb-team.home { justify-content: flex-start; }
     .sb-team.away { justify-content: flex-end; }
     .sb-badge {
       font-family: 'JetBrains Mono', monospace;
-      font-size: 0.92rem;
+      font-size: 0.88rem;
       font-weight: 800;
-      padding: 5px 11px;
-      border-radius: 7px;
+      padding: 4px 9px;
+      border-radius: 6px;
       letter-spacing: 0.05em;
       box-shadow: 0 2px 6px rgba(0,0,0,0.4);
     }
@@ -254,7 +343,7 @@ HTML_TEMPLATE = """
     }
     .sb-name {
       font-weight: 700;
-      font-size: 1.02rem;
+      font-size: 0.95rem;
       letter-spacing: -0.01em;
       white-space: nowrap;
     }
@@ -263,65 +352,209 @@ HTML_TEMPLATE = """
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      min-width: 170px;
+      min-width: 140px;
     }
     .sb-score-box {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
       font-family: 'JetBrains Mono', monospace;
-      font-size: 2.1rem;
+      font-size: 1.85rem;
       font-weight: 800;
       line-height: 1;
     }
     .sb-score {
-      min-width: 26px;
+      min-width: 22px;
       text-align: center;
       color: #f8fafc;
       text-shadow: 0 0 12px rgba(255, 255, 255, 0.3);
     }
     .sb-divider {
       color: rgba(255, 255, 255, 0.35);
-      font-size: 1.5rem;
+      font-size: 1.35rem;
     }
     .sb-clock-box {
       display: flex;
       align-items: center;
-      gap: 8px;
-      margin-top: 4px;
+      gap: 6px;
+      margin-top: 3px;
     }
     .sb-period {
-      font-size: 0.70rem;
+      font-size: 0.65rem;
       font-weight: 700;
       color: #94a3b8;
       background: rgba(255, 255, 255, 0.06);
-      padding: 2px 7px;
+      padding: 1px 6px;
       border-radius: 4px;
       letter-spacing: 0.05em;
     }
     .sb-time {
       font-family: 'JetBrains Mono', monospace;
-      font-size: 0.88rem;
+      font-size: 0.84rem;
       font-weight: 700;
       color: #38bdf8;
     }
     .goal-alert-banner {
       background: linear-gradient(90deg, #ef4444, #f59e0b, #ef4444);
       color: #ffffff;
-      padding: 6px 20px;
+      padding: 5px 16px;
       border-radius: 20px;
-      font-size: 0.86rem;
+      font-size: 0.82rem;
       font-weight: 800;
       letter-spacing: 0.02em;
       box-shadow: 0 4px 20px rgba(239, 68, 68, 0.5);
       animation: pulseGlow 1.4s infinite alternate;
       display: inline-flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
     }
     @keyframes pulseGlow {
       from { transform: scale(1); filter: drop-shadow(0 0 4px rgba(245, 158, 11, 0.6)); }
       to { transform: scale(1.02); filter: drop-shadow(0 0 12px rgba(239, 68, 68, 0.9)); }
+    }
+
+    /* SUB-TOP: 90' CHAPTERS QUICK JUMP */
+    .hud-chapters-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      margin-top: 4px;
+      pointer-events: auto;
+    }
+    .chapters-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(15, 23, 42, 0.82);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 9px;
+      padding: 3px 8px;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+      max-width: 88vw;
+      overflow-x: auto;
+    }
+    .chapters-bar::-webkit-scrollbar { height: 3px; }
+    .chapters-bar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 2px; }
+    .chapter-btn {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+    }
+    .chapter-btn:hover {
+      background: rgba(255, 255, 255, 0.14);
+      color: #ffffff;
+      border-color: rgba(255, 255, 255, 0.3);
+      transform: translateY(-1px);
+    }
+    .chapter-btn.active {
+      background: rgba(16, 185, 129, 0.2);
+      color: #10b981;
+      border-color: rgba(16, 185, 129, 0.6);
+      font-weight: 700;
+    }
+    .chapter-btn.goal-chapter {
+      background: rgba(239, 68, 68, 0.18);
+      color: #f87171;
+      border-color: rgba(239, 68, 68, 0.5);
+      font-weight: 700;
+    }
+
+    /* MIDDLE FLOATING STATS PILLS (LEFT & RIGHT) */
+    .hud-middle-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      pointer-events: none;
+      padding: 0 6px;
+    }
+    .hud-stat-pill {
+      background: rgba(15, 23, 42, 0.86);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 12px;
+      padding: 8px 14px;
+      backdrop-filter: blur(14px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+      pointer-events: auto;
+      min-width: 220px;
+    }
+    .hud-stat-title {
+      font-size: 0.70rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+    }
+    .hud-mono-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.15rem;
+      font-weight: 800;
+    }
+    .shot-gauge {
+      margin-top: 5px;
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 5px;
+      height: 7px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .shot-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #10b981, #f59e0b, #ef4444);
+      width: 0%;
+      transition: width 0.08s ease;
+    }
+
+    /* BOTTOM FLOATING CONTROLS CONSOLE */
+    .hud-bottom-row {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+      pointer-events: none;
+    }
+    .controls-pill {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: rgba(15, 23, 42, 0.92);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 14px;
+      padding: 9px 18px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.7);
+      width: 94%;
+      max-width: 1150px;
+      pointer-events: auto;
+    }
+    .btn {
+      background: #1f2937;
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn:hover { background: #374151; }
+    .btn-play { background: var(--accent); color: #000; font-weight: 700; border: none; }
+    .btn-play:hover { background: #059669; color: #fff; }
+    .slider {
+      flex: 1;
+      accent-color: var(--accent);
+      cursor: pointer;
+      height: 6px;
     }
 
     /* STADIUM RUMBLE VIBRATION EFFECT */
@@ -343,13 +576,13 @@ HTML_TEMPLATE = """
 
     /* CELEBRATION GOAL POPUP MODAL */
     .goal-popup-overlay {
-      position: absolute;
+      position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
       display: flex;
       align-items: center;
       justify-content: center;
       background: rgba(0, 0, 0, 0.55);
-      backdrop-filter: blur(5px);
+      backdrop-filter: blur(6px);
       z-index: 100;
       pointer-events: auto;
       cursor: pointer;
@@ -439,456 +672,173 @@ HTML_TEMPLATE = """
       letter-spacing: 0.06em;
       text-shadow: 0 0 10px rgba(255,255,255,0.4);
     }
-
-    /* TACTICAL CHAPTERS BAR */
-    .chapters-wrap::-webkit-scrollbar,
-    .chapters-bar::-webkit-scrollbar {
-      height: 4px;
-    }
-    .chapters-wrap::-webkit-scrollbar-thumb,
-    .chapters-bar::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.18);
-      border-radius: 4px;
-    }
-    .chapters-wrap {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 12px;
-      background: rgba(255, 255, 255, 0.02);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 6px 14px;
-      overflow-x: auto;
-    }
-    .chapters-title {
-      font-size: 0.78rem;
-      font-weight: 700;
-      color: var(--text-muted);
-      white-space: nowrap;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-    .chapters-bar {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      overflow-x: auto;
-      flex: 1;
-    }
-    .chapter-btn {
-      background: rgba(255, 255, 255, 0.05);
-      color: var(--text-muted);
-      border: 1px solid var(--border);
-      padding: 5px 12px;
-      border-radius: 7px;
-      font-size: 0.77rem;
-      font-weight: 600;
-      cursor: pointer;
-      white-space: nowrap;
-      transition: all 0.15s ease;
-    }
-    .chapter-btn:hover {
-      background: rgba(255, 255, 255, 0.12);
-      color: #ffffff;
-      border-color: rgba(255, 255, 255, 0.3);
-      transform: translateY(-1px);
-    }
-    .chapter-btn.active {
-      background: rgba(16, 185, 129, 0.2);
-      color: #10b981;
-      border-color: rgba(16, 185, 129, 0.6);
-      font-weight: 700;
-    }
-    .chapter-btn.goal-chapter {
-      background: rgba(239, 68, 68, 0.18);
-      color: #f87171;
-      border-color: rgba(239, 68, 68, 0.5);
-      font-weight: 700;
-    }
-    .chapter-btn.goal-chapter:hover {
-      background: rgba(239, 68, 68, 0.35);
-      color: #ffffff;
-    }
-
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 12px;
-      margin-bottom: 14px;
-    }
-    .stat-card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 10px 14px;
-    }
-    .stat-label {
-      font-size: 0.74rem;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-    }
-    .stat-val {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 1.25rem;
-      font-weight: 700;
-      margin-top: 3px;
-    }
-    .main-grid {
-      display: grid;
-      grid-template-columns: 1fr 340px;
-      gap: 18px;
-      flex: 1;
-      transition: all 0.3s ease;
-    }
-    @media (max-width: 1080px) {
-      .main-grid { grid-template-columns: 1fr; }
-    }
-    .main-grid.full-arena-mode {
-      grid-template-columns: 1fr !important;
-    }
-    .main-grid.full-arena-mode .sidebar {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 14px;
-      margin-top: 10px;
-    }
-    .viewport-card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 14px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      position: relative;
-    }
-    .view-stage {
-      position: relative;
-      width: 100%;
-      height: 680px;
-      min-height: 620px;
-      background: #030508;
-      border-radius: 12px;
-      overflow: hidden;
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.8), 0 0 1px rgba(255, 255, 255, 0.2);
-      transition: height 0.3s ease;
-    }
-    .view-stage.full-arena {
-      height: 82vh;
-      min-height: 750px;
-    }
-    #three-canvas-container {
-      width: 100%;
-      height: 100%;
-      display: block;
-    }
-    #pitch-2d-canvas {
-      width: 100%;
-      height: 100%;
-      display: none;
-    }
-    .hud-overlay {
-      position: absolute;
-      top: 10px;
-      left: 12px;
-      background: rgba(0, 0, 0, 0.65);
-      border: 1px solid var(--border);
-      padding: 7px 12px;
-      border-radius: 8px;
-      backdrop-filter: blur(8px);
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.78rem;
-      z-index: 10;
-      pointer-events: none;
-    }
-    .controls {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      width: 100%;
-      padding: 10px 16px;
-      background: rgba(0, 0, 0, 0.5);
-      border-radius: 10px;
-      border: 1px solid var(--border);
-    }
-    .btn {
-      background: #1f2937;
-      color: var(--text);
-      border: 1px solid var(--border);
-      padding: 7px 16px;
-      border-radius: 6px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .btn:hover { background: #374151; }
-    .btn-play { background: var(--accent); color: #000; font-weight: 700; border: none; }
-    .btn-play:hover { background: #059669; color: #fff; }
-    .slider {
-      flex: 1;
-      accent-color: var(--accent);
-      cursor: pointer;
-      height: 6px;
-    }
-    .sidebar {
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-    .frame-info {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-    .info-row {
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.86rem;
-    }
-    .info-val { font-family: 'JetBrains Mono', monospace; font-weight: 600; }
-    .shot-gauge {
-      margin-top: 6px;
-      background: rgba(255, 255, 255, 0.05);
-      border-radius: 6px;
-      height: 10px;
-      overflow: hidden;
-      border: 1px solid var(--border);
-    }
-    .shot-fill {
-      height: 100%;
-      background: linear-gradient(90deg, #10b981, #f59e0b, #ef4444);
-      width: 0%;
-      transition: width 0.08s ease;
-    }
-    .hint-box {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      line-height: 1.4;
-      padding: 8px 12px;
-      background: rgba(255, 255, 255, 0.03);
-      border-radius: 8px;
-    }
-    .cam-btn {
-      background: rgba(255, 255, 255, 0.08);
-      color: #e2e8f0;
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: 5px;
-      padding: 3px 8px;
-      font-size: 0.72rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.15s ease;
-    }
-    .cam-btn:hover {
-      background: var(--accent);
-      color: #000000;
-      border-color: var(--accent);
-    }
-    .cam-btn.active {
-      background: var(--accent);
-      color: #000000;
-      font-weight: 700;
-    }
   </style>
 </head>
 <body>
-  <div class="header">
-    <div>
-      <h2 style="letter-spacing: -0.02em;">⚽ 3D Tactical Pitch Control & Kinematics Engine</h2>
-      <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 2px;">More Than a Hack 2027 · Barça Innovation Hub & Metrica Sports</p>
-    </div>
-    <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
-      <!-- Match Selector Dropdown -->
-      <select id="match-select" onchange="onMatchChange(this.value)" style="background: #111827; color: #f3f4f6; border: 1px solid var(--border); border-radius: 8px; padding: 7px 12px; font-size: 0.84rem; font-weight: 600; cursor: pointer; outline: none;">
-        {% for m_id, m_data in matches.items() %}
-          <option value="{{ m_id }}" {% if m_id == selected_match_id %}selected{% endif %}>{{ m_data.title }}</option>
-        {% endfor %}
-      </select>
+  <!-- 1. FULLSCREEN 3D & 2D ENGINE (100vw x 100vh Edge-to-Edge) -->
+  <div id="three-canvas-container"></div>
+  <canvas id="pitch-2d-canvas"></canvas>
 
-      <div class="view-toggle">
-        <button id="btn-view-3d" class="view-btn active" onclick="switchView('3d')">3D Stadium</button>
-        <button id="btn-view-2d" class="view-btn" onclick="switchView('2d')">2D Planar</button>
+  <!-- CELEBRATION GOAL POPUP MODAL -->
+  <div id="goal-popup-modal" class="goal-popup-overlay" style="display: none;" onclick="this.style.display='none'">
+    <div class="goal-popup-card">
+      <div class="goal-popup-burst">💥 ⚽ 💥</div>
+      <div class="goal-popup-title">GOAAALLL!</div>
+      <div class="goal-popup-scorer" id="popup-scorer-name">ROBERT LEWANDOWSKI</div>
+      <div class="goal-popup-details">
+        <span class="popup-badge" id="popup-minute-badge">89'</span>
+        <span class="popup-stat" id="popup-type-stat">Top-Corner Bullet Strike</span>
+        <span class="popup-speed" id="popup-speed-stat">112.5 km/h</span>
       </div>
-
-      <!-- 3D Camera Angles Preset -->
-      <div id="cam-presets-bar" style="display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 8px; border: 1px solid var(--border); flex-wrap: wrap;">
-        <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: 700;">🎥 CAM:</span>
-        <button class="cam-btn active" onclick="setCameraPreset('broadcast')">🎮 FIFA Tele</button>
-        <button class="cam-btn" onclick="setCameraPreset('pro')">👤 Single Player (Be-A-Pro)</button>
-        <button class="cam-btn" onclick="setCameraPreset('duel')">⚔️ 2-Player Duel (1v1)</button>
-        <button class="cam-btn" onclick="setCameraPreset('action')">⚽ Dynamic Follow</button>
-        <button class="cam-btn" onclick="setCameraPreset('goal')">🥅 Behind Goal</button>
-        <button class="cam-btn" onclick="setCameraPreset('dugout')">🏟️ Pitch Dugout</button>
-        <button class="cam-btn" id="btn-toggle-fullscreen" onclick="toggleArenaMode()" style="background: rgba(16, 185, 129, 0.18); color: #10b981; border-color: rgba(16, 185, 129, 0.4); font-weight: 700;">⛶ Full Arena</button>
-      </div>
-
-      <div class="badge">● 90' BROADCAST SYNC</div>
+      <div class="goal-popup-score" id="popup-score-display">FC BARCELONA 1 - 0 REAL MADRID</div>
+      <div style="font-size: 0.72rem; color: rgba(255,255,255,0.7); margin-top: 8px;">(Click anywhere to dismiss)</div>
     </div>
   </div>
 
-  <!-- BROADCAST SCOREBOARD (Papan Skor) -->
-  <div class="scoreboard-wrap">
-    <div class="scoreboard-card">
-      <div class="sb-team home">
-        <span class="sb-badge home-badge" id="sb-home-badge">{{ metadata.home_team.badge|default('BAR') }}</span>
-        <span class="sb-name" id="sb-home-name">{{ metadata.home_team.name|default('FC Barcelona') }}</span>
-      </div>
-      <div class="sb-center">
-        <div class="sb-score-box">
-          <span class="sb-score" id="sb-score-home">0</span>
-          <span class="sb-divider">:</span>
-          <span class="sb-score" id="sb-score-away">0</span>
-        </div>
-        <div class="sb-clock-box">
-          <span class="sb-period" id="sb-period">1ST HALF</span>
-          <span class="sb-time" id="sb-time">00:00</span>
-        </div>
-      </div>
-      <div class="sb-team away">
-        <span class="sb-name" id="sb-away-name">{{ metadata.away_team.name|default('Real Madrid') }}</span>
-        <span class="sb-badge away-badge" id="sb-away-badge">{{ metadata.away_team.badge|default('RMA') }}</span>
-      </div>
-    </div>
-    <div id="goal-alert-banner" class="goal-alert-banner" style="display: none;">
-      ⚽ <span id="goal-alert-text">GOAL! R. Lewandowski (89') · Bullet Strike (112.5 km/h)</span>
-    </div>
-  </div>
+  <!-- 2. FLOATING VIDEO GAME HUD OVERLAY (z-index: 10, pointer-events: none) -->
+  <div class="hud-layer" id="hud-container">
 
-  <!-- TACTICAL CHAPTERS BAR (Full 90-Minute Quick Navigator) -->
-  <div class="chapters-wrap">
-    <div class="chapters-title">⚡ 90' Chapters:</div>
-    <div class="chapters-bar" id="chapters-bar">
-      {% for ch in metadata.chapters|default([]) %}
-        <button class="chapter-btn {% if 'GOAL' in ch.label %}goal-chapter{% endif %}" data-min="{{ ch.min }}" onclick="jumpToMinute({{ ch.min }})">{{ ch.label }}</button>
-      {% endfor %}
-    </div>
-  </div>
-
-  <div class="stats-grid">
-    <div class="stat-card">
-      <div class="stat-label">Match Clock</div>
-      <div class="stat-val" style="color: #60a5fa;" id="stat-clock">00:00</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">Home Territory Control</div>
-      <div class="stat-val" style="color: var(--home);" id="stat-pc-home">{{ "%.1f"|format(home_pct) }}%</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">Away Territory Control</div>
-      <div class="stat-val" style="color: var(--away);" id="stat-pc-away">{{ "%.1f"|format(away_pct) }}%</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">Ball Elevation (Z)</div>
-      <div class="stat-val" style="color: #a78bfa;" id="stat-z">0.0 m</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">Shot / Ball Speed</div>
-      <div class="stat-val" style="color: #f59e0b;" id="stat-speed">0.0 km/h</div>
-    </div>
-  </div>
-
-  <div class="main-grid">
-    <div class="viewport-card">
-      <div class="view-stage" id="main-view-stage">
-        <div class="hud-overlay" id="hud-camera-info">
-          🎥 3D Orbit Camera: Left Click to Rotate | Right Click to Pan | Scroll to Zoom
-        </div>
-        <div id="three-canvas-container"></div>
-        <canvas id="pitch-2d-canvas" width="1050" height="680"></canvas>
-
-        <!-- CELEBRATION GOAL POPUP MODAL -->
-        <div id="goal-popup-modal" class="goal-popup-overlay" style="display: none;" onclick="this.style.display='none'">
-          <div class="goal-popup-card">
-            <div class="goal-popup-burst">💥 ⚽ 💥</div>
-            <div class="goal-popup-title">GOAAALLL!</div>
-            <div class="goal-popup-scorer" id="popup-scorer-name">ROBERT LEWANDOWSKI</div>
-            <div class="goal-popup-details">
-              <span class="popup-badge" id="popup-minute-badge">89'</span>
-              <span class="popup-stat" id="popup-type-stat">Top-Corner Bullet Strike</span>
-              <span class="popup-speed" id="popup-speed-stat">112.5 km/h</span>
-            </div>
-            <div class="goal-popup-score" id="popup-score-display">FC BARCELONA 1 - 0 REAL MADRID</div>
-            <div style="font-size: 0.72rem; color: rgba(255,255,255,0.7); margin-top: 8px;">(Click anywhere to dismiss)</div>
+    <!-- TOP ROW: Brand/Match (Left), Scoreboard (Center), Cam Angles & Fullscreen (Right) -->
+    <div class="hud-top-bar">
+      <!-- Top Left: Match Selector & 2D/3D View Mode -->
+      <div class="hud-group">
+        <div class="hud-brand">
+          <span style="font-size: 1.15rem;">⚽</span>
+          <div>
+            <div style="font-weight: 800; font-size: 0.82rem; letter-spacing: -0.01em;">3D TACTICAL KINEMATICS</div>
+            <div style="font-size: 0.65rem; color: var(--text-muted);">90' Match Arena Engine</div>
           </div>
         </div>
-      </div>
-      
-      <div class="controls">
-        <button id="btn-play" class="btn btn-play" onclick="togglePlay()">Play ▶</button>
-        <button class="btn" onclick="stepFrame(-10)">-10s</button>
-        <button class="btn" onclick="stepFrame(-1)">◀</button>
-        <input type="range" id="frame-slider" class="slider" min="1" max="{{ total_frames }}" value="1" oninput="onSlide(this.value)">
-        <button class="btn" onclick="stepFrame(1)">▶</button>
-        <button class="btn" onclick="stepFrame(10)">+10s</button>
-        <span id="frame-label" style="font-family: 'JetBrains Mono'; font-weight: 600; min-width: 100px; text-align: right;">1 / {{ total_frames }}</span>
+
+        <select id="match-select" onchange="onMatchChange(this.value)" class="hud-select">
+          {% for m_id, m_data in matches.items() %}
+            <option value="{{ m_id }}" {% if m_id == selected_match_id %}selected{% endif %}>{{ m_data.title }}</option>
+          {% endfor %}
+        </select>
+
+        <div class="view-toggle">
+          <button id="btn-view-3d" class="view-btn active" onclick="switchView('3d')">3D Stadium</button>
+          <button id="btn-view-2d" class="view-btn" onclick="switchView('2d')">2D Planar</button>
+        </div>
       </div>
 
-      <div class="hint-box">
-        💡 <strong>Broadcast-Grade Kinematics & 90-Minute Simulation:</strong> Trajektori bola mengikuti hukum fisika riil (dekselerasi gesekan rumput alami, umpan akurat kaki-ke-kaki, <em>cross</em> parabolik melengkung Z hingga 5.4m, & <em>power strike</em> roket 112+ km/h). Gunakan <strong>Papan Skor</strong> dan <strong>90' Chapters</strong> di atas untuk berpindah momen taktis instan!
+      <!-- Top Center: Broadcast Scoreboard (Papan Skor) -->
+      <div class="hud-scoreboard-wrap">
+        <div class="scoreboard-card">
+          <div class="sb-team home">
+            <span class="sb-badge home-badge" id="sb-home-badge">{{ metadata.home_team.badge|default('BAR') }}</span>
+            <span class="sb-name" id="sb-home-name">{{ metadata.home_team.name|default('FC Barcelona') }}</span>
+          </div>
+          <div class="sb-center">
+            <div class="sb-score-box">
+              <span class="sb-score" id="sb-score-home">0</span>
+              <span class="sb-divider">:</span>
+              <span class="sb-score" id="sb-score-away">0</span>
+            </div>
+            <div class="sb-clock-box">
+              <span class="sb-period" id="sb-period">1ST HALF</span>
+              <span class="sb-time" id="sb-time">00:00</span>
+            </div>
+          </div>
+          <div class="sb-team away">
+            <span class="sb-name" id="sb-away-name">{{ metadata.away_team.name|default('Real Madrid') }}</span>
+            <span class="sb-badge away-badge" id="sb-away-badge">{{ metadata.away_team.badge|default('RMA') }}</span>
+          </div>
+        </div>
+        <div id="goal-alert-banner" class="goal-alert-banner" style="display: none;">
+          ⚽ <span id="goal-alert-text">GOAL! R. Lewandowski (89') · Bullet Strike (112.5 km/h)</span>
+        </div>
+      </div>
+
+      <!-- Top Right: 3D Camera Angles & Controls -->
+      <div class="hud-group">
+        <div id="cam-presets-bar" class="hud-cam-bar">
+          <span style="font-size: 0.70rem; color: var(--text-muted); font-weight: 700;">🎥 CAM:</span>
+          <button class="cam-btn active" onclick="setCameraPreset('broadcast')">🎮 FIFA Pitch</button>
+          <button class="cam-btn" onclick="setCameraPreset('pro')">👤 Be-A-Pro (1P)</button>
+          <button class="cam-btn" onclick="setCameraPreset('duel')">⚔️ Duel 1v1 (2P)</button>
+          <button class="cam-btn" onclick="setCameraPreset('goal')">🥅 Behind Goal</button>
+          <button class="cam-btn" onclick="setCameraPreset('action')">⚽ Dynamic</button>
+          <button class="cam-btn" onclick="setCameraPreset('dugout')">🏟️ Dugout</button>
+        </div>
+        <button class="hud-btn" id="btn-toggle-fullscreen" onclick="toggleBrowserFullscreen()" title="Native Browser Fullscreen">⛶ Fullscreen</button>
+        <button class="hud-btn" id="btn-toggle-hud" onclick="toggleHUD()" title="Hide / Show HUD Overlays">👁️ HUD</button>
       </div>
     </div>
 
-    <div class="sidebar">
-      <div class="frame-info">
-        <h4 style="margin-bottom: 2px;">Ball Kinematics & Power</h4>
-        <div class="info-row">
-          <span style="color: var(--text-muted);">Instantaneous Speed</span>
-          <span id="lbl-speed-val" class="info-val">0.0 km/h</span>
+    <!-- SUB-TOP: 90' Chapters Quick Navigator -->
+    <div class="hud-chapters-wrap">
+      <div class="chapters-bar" id="chapters-bar">
+        {% for ch in metadata.chapters|default([]) %}
+          <button class="chapter-btn {% if 'GOAL' in ch.label %}goal-chapter{% endif %}" data-min="{{ ch.min }}" onclick="jumpToMinute({{ ch.min }})">{{ ch.label }}</button>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- MIDDLE FLOATING STATS PILLS (LEFT & RIGHT) -->
+    <div class="hud-middle-row">
+      <!-- Left Pill: Pitch Territory Control & Possession -->
+      <div class="hud-stat-pill">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div class="hud-stat-title">TERRITORY CONTROL</div>
+          <span id="lbl-status" style="font-size: 0.68rem; font-weight: 800; color: var(--accent);">STABLE</span>
+        </div>
+        <div style="display: flex; gap: 12px; align-items: baseline; margin-top: 4px;">
+          <div><span class="hud-mono-val" style="color: var(--home);" id="stat-pc-home">{{ "%.1f"|format(home_pct) }}%</span> <span style="font-size: 0.68rem; color: var(--text-muted);">HOME</span></div>
+          <div style="color: rgba(255,255,255,0.2);">|</div>
+          <div><span class="hud-mono-val" style="color: var(--away);" id="stat-pc-away">{{ "%.1f"|format(away_pct) }}%</span> <span style="font-size: 0.68rem; color: var(--text-muted);">AWAY</span></div>
+        </div>
+        <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 5px; display: flex; justify-content: space-between;">
+          <span>Ball: <b id="lbl-player" style="color: #f3f4f6;">H10 (Lewandowski)</b></span>
+          <span>Team: <b id="lbl-team" style="color: var(--home);">Home</b></span>
+          <span style="display: none;" id="lbl-dist">0.42 m</span>
+          <span style="display: none;" id="lbl-pc-home">{{ "%.1f"|format(home_pct) }}%</span>
+          <span style="display: none;" id="lbl-pc-away">{{ "%.1f"|format(away_pct) }}%</span>
+        </div>
+      </div>
+
+      <!-- Right Pill: Ball Kinematics & Instantaneous Power -->
+      <div class="hud-stat-pill" style="min-width: 250px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div class="hud-stat-title">BALL KINEMATICS</div>
+          <span id="lbl-ball-state" style="font-size: 0.68rem; font-weight: 800; color: #facc15;">GROUND PASS ⚡</span>
+        </div>
+        <div style="display: flex; gap: 14px; align-items: baseline; margin-top: 4px;">
+          <div><span class="hud-mono-val" style="color: #f59e0b;" id="stat-speed">0.0 km/h</span> <span style="font-size: 0.68rem; color: var(--text-muted);">SPEED</span></div>
+          <div><span class="hud-mono-val" style="color: #a78bfa;" id="stat-z">0.0 m</span> <span style="font-size: 0.68rem; color: var(--text-muted);">Z ELEVATION</span></div>
+          <span style="display: none;" id="lbl-speed-val">0.0 km/h</span>
+          <span style="display: none;" id="lbl-z-val">0.00 m</span>
         </div>
         <div class="shot-gauge">
           <div id="shot-meter" class="shot-fill"></div>
         </div>
-        <div class="info-row" style="margin-top: 4px;">
-          <span style="color: var(--text-muted);">Flight Elevation (Z)</span>
-          <span id="lbl-z-val" class="info-val">0.00 m</span>
-        </div>
-        <div class="info-row">
-          <span style="color: var(--text-muted);">Ball State</span>
-          <span id="lbl-ball-state" class="info-val" style="color: #facc15;">GROUND TIKI-TAKA</span>
-        </div>
       </div>
+    </div>
 
-      <div class="frame-info">
-        <h4 style="margin-bottom: 2px;">Possession State</h4>
-        <div class="info-row">
-          <span style="color: var(--text-muted);">Controlling Team</span>
-          <span id="lbl-team" class="info-val" style="color: var(--home);">Home</span>
+    <!-- BOTTOM FLOATING CONTROLS CONSOLE -->
+    <div class="hud-bottom-row">
+      <div class="controls-pill">
+        <button id="btn-play" class="btn btn-play" onclick="togglePlay()">Play ▶</button>
+        <button class="btn" onclick="stepFrame(-10)">-10s</button>
+        <button class="btn" onclick="stepFrame(-1)">◀</button>
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 3px;">
+          <input type="range" id="frame-slider" class="slider" min="1" max="{{ total_frames }}" value="1" oninput="onSlide(this.value)">
+          <div style="display: flex; justify-content: space-between; font-size: 0.65rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace;">
+            <span>01' Kick-off</span>
+            <span>45' Halftime (HT)</span>
+            <span style="color: #ef4444; font-weight: 700;">89' ⚽ GOAL! (1-0)</span>
+            <span>90' Full Time (FT)</span>
+          </div>
         </div>
-        <div class="info-row">
-          <span style="color: var(--text-muted);">Primary Player</span>
-          <span id="lbl-player" class="info-val">H10 (Lewandowski)</span>
-        </div>
-        <div class="info-row">
-          <span style="color: var(--text-muted);">Ball Proximity</span>
-          <span id="lbl-dist" class="info-val">0.42 m</span>
-        </div>
-        <div class="info-row">
-          <span style="color: var(--text-muted);">Markov Filter Stability</span>
-          <span id="lbl-status" class="info-val" style="color: var(--accent);">STABLE</span>
-        </div>
-      </div>
-
-      <div class="frame-info">
-        <h4 style="margin-bottom: 2px;">Pitch Control (Voronoi/Spearman)</h4>
-        <div class="info-row">
-          <span style="color: var(--text-muted);">Home Domination</span>
-          <span id="lbl-pc-home" class="info-val" style="color: var(--home);">{{ "%.1f"|format(home_pct) }}%</span>
-        </div>
-        <div class="info-row">
-          <span style="color: var(--text-muted);">Away Domination</span>
-          <span id="lbl-pc-away" class="info-val" style="color: var(--away);">{{ "%.1f"|format(away_pct) }}%</span>
+        <button class="btn" onclick="stepFrame(1)">▶</button>
+        <button class="btn" onclick="stepFrame(10)">+10s</button>
+        <div style="display: flex; flex-direction: column; align-items: flex-end; font-family: 'JetBrains Mono'; font-weight: 700; min-width: 105px;">
+          <span style="color: #60a5fa; font-size: 0.96rem;" id="stat-clock">00:00</span>
+          <span id="frame-label" style="font-size: 0.68rem; color: var(--text-muted);">1 / {{ total_frames }}</span>
         </div>
       </div>
     </div>
+
   </div>
 
   <script>
@@ -924,12 +874,11 @@ HTML_TEMPLATE = """
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0x06090e);
 
-        const stageEl = document.querySelector('.view-stage');
-        const initW = (stageEl ? stageEl.clientWidth : 0) || container.clientWidth || 1050;
-        const initH = (stageEl ? stageEl.clientHeight : 0) || container.clientHeight || 520;
+        const initW = window.innerWidth;
+        const initH = window.innerHeight;
         const aspect = initW / initH;
-        camera = new THREE.PerspectiveCamera(45, aspect, 0.1, 1000);
-        camera.position.set(52.5, -34, 42);
+        camera = new THREE.PerspectiveCamera(46, aspect, 0.1, 1000);
+        camera.position.set(52.5, -28.0, 34.0);
         camera.up.set(0, 0, 1);
 
         let createdRenderer = null;
@@ -953,18 +902,18 @@ HTML_TEMPLATE = """
 
         if (THREE.OrbitControls) {
           controls = new THREE.OrbitControls(camera, renderer.domElement);
-          controls.target.set(52.5, 34, 1.2);
+          controls.target.set(52.5, 34.0, 0.0);
           controls.enableDamping = true;
           controls.dampingFactor = 0.05;
           controls.enableZoom = true;
           controls.zoomSpeed = 1.3;
-          controls.minDistance = 3.5;
-          controls.maxDistance = 240;
+          controls.minDistance = 5.0;
+          controls.maxDistance = 260.0;
           controls.enableRotate = true;
           controls.rotateSpeed = 0.9;
           controls.enablePan = true;
           controls.panSpeed = 0.8;
-          controls.maxPolarAngle = Math.PI / 2.01; // Allow horizontal turf level view
+          controls.maxPolarAngle = Math.PI / 2.02;
           controls.minPolarAngle = 0.05;
         }
 
@@ -1369,14 +1318,14 @@ HTML_TEMPLATE = """
     const canvas2D = document.getElementById('pitch-2d-canvas');
     const ctx2D = canvas2D.getContext('2d');
 
-    let camYaw = 0.03;
-    let camPitch = 0.38;
-    let camDist = 86.0;
+    let camYaw = 0.0;
+    let camPitch = 0.52;
+    let camDist = 58.0;
     let camTargetX = 52.5;
     let camTargetY = 34.0;
     let camTargetZ = 0.0;
-    let camFovMult = 1.6;
-    let camOffsetY = 0.08;
+    let camFovMult = 2.05;
+    let camOffsetY = 0.02;
     let currentCamPreset = 'broadcast';
     let isDragging = false;
     let lastMouseX = 0;
@@ -1405,15 +1354,19 @@ HTML_TEMPLATE = """
     canvas2D.addEventListener('wheel', (e) => {
       if (activeView !== '3d') return;
       e.preventDefault();
-      camDist = Math.max(38.0, Math.min(160.0, camDist + e.deltaY * 0.08));
+      camDist = Math.max(25.0, Math.min(160.0, camDist + e.deltaY * 0.08));
       render(currentFrame);
     }, { passive: false });
 
     function resizeCanvas() {
-      const stage = document.querySelector('.view-stage');
-      if (stage && canvas2D) {
-        canvas2D.width = stage.clientWidth || 1050;
-        canvas2D.height = stage.clientHeight || 520;
+      if (canvas2D) {
+        canvas2D.width = window.innerWidth;
+        canvas2D.height = window.innerHeight;
+      }
+      if (threeInitialized && camera && renderer && container) {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
       }
     }
 
@@ -2321,7 +2274,11 @@ HTML_TEMPLATE = """
         camTargetX += (f.ball.x - camTargetX) * 0.18;
         if (threeInitialized && camera && controls) {
           camera.position.x += (f.ball.x - camera.position.x) * 0.18;
+          camera.position.y = -28.0;
+          camera.position.z = 34.0;
           controls.target.x = camera.position.x;
+          controls.target.y = 34.0;
+          controls.target.z = 0.0;
         }
       } else if (currentCamPreset === 'pro') {
         const p = getActiveBallPlayer(f);
@@ -2329,36 +2286,46 @@ HTML_TEMPLATE = """
           const spd = Math.hypot(p.vx || 0, p.vy || 0);
           const fac = (spd > 0.3) ? Math.atan2(p.vy, p.vx) : (p.team === 'Home' ? 0 : Math.PI);
           const fc = Math.cos(fac), fs = Math.sin(fac);
-          camTargetX += (p.x + fc * 10 - camTargetX) * 0.22;
-          camTargetY += (p.y + fs * 10 - camTargetY) * 0.22;
+          camTargetX += (p.x + fc * 12 - camTargetX) * 0.22;
+          camTargetY += (p.y + fs * 12 - camTargetY) * 0.22;
           camYaw = fac - Math.PI / 2;
           if (threeInitialized && camera && controls) {
-            const tx = p.x - fc * 7.5, ty = p.y - fs * 7.5;
+            const tx = p.x - fc * 6.5, ty = p.y - fs * 6.5;
             camera.position.x += (tx - camera.position.x) * 0.22;
             camera.position.y += (ty - camera.position.y) * 0.22;
-            camera.position.z = Math.max(2.0, (p.z || 0) + 2.8);
-            controls.target.x += (p.x + fc * 10 - controls.target.x) * 0.22;
-            controls.target.y += (p.y + fs * 10 - controls.target.y) * 0.22;
+            camera.position.z = Math.max(2.2, (p.z || 0) + 2.8);
+            controls.target.x += (p.x + fc * 12 - controls.target.x) * 0.22;
+            controls.target.y += (p.y + fs * 12 - controls.target.y) * 0.22;
+            controls.target.z = 1.2;
           }
         }
       } else if (currentCamPreset === 'duel') {
         const { p1, p2 } = getDuelPlayers(f);
         if (p1 && p2) {
           const mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
+          let duelAngle = Math.atan2(p2.y - p1.y, p2.x - p1.x) - Math.PI / 2;
           camTargetX += (mx - camTargetX) * 0.20;
           camTargetY += (my - camTargetY) * 0.20;
           if (threeInitialized && camera && controls) {
-            camera.position.x += (mx - camera.position.x) * 0.20;
-            camera.position.y += ((my - 11) - camera.position.y) * 0.20;
+            const tx = mx + Math.cos(duelAngle) * 8.5;
+            const ty = my + Math.sin(duelAngle) * 8.5;
+            camera.position.x += (tx - camera.position.x) * 0.20;
+            camera.position.y += (ty - camera.position.y) * 0.20;
+            camera.position.z = 3.2;
             controls.target.x += (mx - controls.target.x) * 0.20;
             controls.target.y += (my - controls.target.y) * 0.20;
+            controls.target.z = 1.2;
           }
         }
       } else if (currentCamPreset === 'dugout') {
         camTargetX += (f.ball.x - camTargetX) * 0.18;
         if (threeInitialized && camera && controls) {
           camera.position.x += (f.ball.x - camera.position.x) * 0.18;
+          camera.position.y = -6.0;
+          camera.position.z = 2.2;
           controls.target.x = camera.position.x;
+          controls.target.y = 34.0;
+          controls.target.z = 1.2;
         }
       }
 
@@ -2413,12 +2380,12 @@ HTML_TEMPLATE = """
             const spd = Math.hypot(p.vx || 0, p.vy || 0);
             const fac = (spd > 0.3) ? Math.atan2(p.vy, p.vx) : (p.team === 'Home' ? 0 : Math.PI);
             const fc = Math.cos(fac), fs = Math.sin(fac);
-            const camX = p.x - fc * 8.5;
-            const camY = p.y - fs * 8.5;
-            const camZ = 3.6;
-            const tgtX = p.x + fc * 12.0;
-            const tgtY = p.y + fs * 12.0;
-            const tgtZ = 1.3;
+            const camX = p.x - fc * 5.5;
+            const camY = p.y - fs * 5.5;
+            const camZ = 2.0;
+            const tgtX = p.x + fc * 10.0;
+            const tgtY = p.y + fs * 10.0;
+            const tgtZ = 1.2;
             if (isPlaying) {
               camera.position.lerp(new THREE.Vector3(camX, camY, camZ), 0.2);
               controls.target.lerp(new THREE.Vector3(tgtX, tgtY, tgtZ), 0.2);
@@ -2435,15 +2402,15 @@ HTML_TEMPLATE = """
             if (p1 && p2) {
               duelAngle = Math.atan2(p2.y - p1.y, p2.x - p1.x) - Math.PI / 2;
             }
-            const camX = mx + Math.cos(duelAngle) * 10.5;
-            const camY = my + Math.sin(duelAngle) * 10.5;
-            const camZ = 3.8;
+            const camX = mx + Math.cos(duelAngle) * 7.5;
+            const camY = my + Math.sin(duelAngle) * 7.5;
+            const camZ = 2.2;
             if (isPlaying) {
               camera.position.lerp(new THREE.Vector3(camX, camY, camZ), 0.2);
-              controls.target.lerp(new THREE.Vector3(mx, my, 1.2), 0.2);
+              controls.target.lerp(new THREE.Vector3(mx, my, 1.1), 0.2);
             } else {
               camera.position.set(camX, camY, camZ);
-              controls.target.set(mx, my, 1.2);
+              controls.target.set(mx, my, 1.1);
             }
             controls.update();
           } else if (currentCamPreset === 'action') {
@@ -2452,8 +2419,8 @@ HTML_TEMPLATE = """
               camera.position.x += (camX - camera.position.x) * 0.15;
               controls.target.x += (camX - controls.target.x) * 0.15;
             } else {
-              camera.position.set(camX, -30, 36);
-              controls.target.set(camX, 34, 0.5);
+              camera.position.set(camX, -16, 9.0);
+              controls.target.set(camX, 34, 1.5);
             }
             controls.update();
           } else if (currentCamPreset === 'dugout') {
@@ -2462,7 +2429,7 @@ HTML_TEMPLATE = """
               camera.position.x += (camX - camera.position.x) * 0.15;
               controls.target.x += (camX - controls.target.x) * 0.15;
             } else {
-              camera.position.set(camX, -2.5, 1.8);
+              camera.position.set(camX, -1.8, 1.4);
               controls.target.set(camX, 34, 1.0);
             }
             controls.update();
@@ -2669,9 +2636,8 @@ HTML_TEMPLATE = """
             hudCam.textContent = '🎥 3D Orbit Camera: Left Click to Rotate | Right Click to Pan | Scroll to Zoom';
           }
           if (renderer && camera) {
-            const stage = document.querySelector('.view-stage');
-            const w = (stage ? stage.clientWidth : 0) || cont3d.clientWidth || 1050;
-            const h = (stage ? stage.clientHeight : 0) || cont3d.clientHeight || 520;
+            const w = window.innerWidth;
+            const h = window.innerHeight;
             camera.aspect = w / h;
             camera.updateProjectionMatrix();
             renderer.setSize(w, h);
@@ -2725,32 +2691,20 @@ HTML_TEMPLATE = """
       return { p1, p2: p2 || p1 };
     }
 
-    let isFullArena = false;
-    function toggleArenaMode() {
-      isFullArena = !isFullArena;
-      const stage = document.querySelector('.view-stage');
-      const grid = document.querySelector('.main-grid');
-      const btn = document.getElementById('btn-toggle-fullscreen');
-      if (stage && grid) {
-        stage.classList.toggle('full-arena', isFullArena);
-        grid.classList.toggle('full-arena-mode', isFullArena);
-        if (btn) {
-          btn.textContent = isFullArena ? '⛶ Normal Stage' : '⛶ Full Arena';
-        }
-        setTimeout(() => {
-          if (threeInitialized && camera && renderer) {
-            camera.aspect = stage.clientWidth / stage.clientHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(stage.clientWidth, stage.clientHeight);
-            renderer.render(scene, camera);
-          }
-          resizeCanvas();
-          render(currentFrame);
-        }, 60);
+    function toggleHUD() {
+      const hud = document.getElementById('hud-container');
+      if (hud) hud.classList.toggle('hidden');
+    }
+
+    function toggleBrowserFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => console.log(err));
+      } else {
+        document.exitFullscreen().catch(err => console.log(err));
       }
     }
 
-    // 3D Camera Angles Preset Controller
+    // 3D Camera Angles Preset Controller (Calibrated Low Pitch Elevation)
     function setCameraPreset(mode) {
       currentCamPreset = mode;
       if (activeView !== '3d') switchView('3d');
@@ -2775,17 +2729,19 @@ HTML_TEMPLATE = """
       const by = f ? f.ball.y : 34.0;
 
       if (mode === 'broadcast') {
-        // FIFA Tele Broadcast (Sideline gantry angle, natural pitch elevation)
-        camYaw = 0.02;
-        camPitch = 0.55;
-        camDist = 88.0;
+        // FIFA Pitch Broadcast (Expansive sideline grandstand angle filling the screen)
+        camYaw = 0.0;
+        camPitch = 0.52;
+        camDist = 58.0;
         camTargetX = 52.5;
         camTargetY = 34.0;
-        camFovMult = 1.35;
-        camOffsetY = 0.05;
+        camFovMult = 2.05;
+        camOffsetY = 0.02;
         if (threeInitialized && camera && controls) {
-          camera.position.set(52.5, -34, 42);
-          controls.target.set(52.5, 34, 0);
+          camera.fov = 46;
+          camera.updateProjectionMatrix();
+          camera.position.set(52.5, -28.0, 34.0);
+          controls.target.set(52.5, 34.0, 0.0);
           controls.update();
         }
       } else if (mode === 'pro') {
@@ -2794,16 +2750,18 @@ HTML_TEMPLATE = """
         const spd = Math.hypot(p.vx || 0, p.vy || 0);
         const fac = (spd > 0.3) ? Math.atan2(p.vy, p.vx) : (p.team === 'Home' ? 0 : Math.PI);
         const fc = Math.cos(fac), fs = Math.sin(fac);
-        camTargetX = p.x + fc * 10;
-        camTargetY = p.y + fs * 10;
+        camTargetX = p.x + fc * 12;
+        camTargetY = p.y + fs * 12;
         camYaw = fac - Math.PI / 2;
         camPitch = 0.22;
-        camDist = 9.0;
-        camFovMult = 1.9;
+        camDist = 8.0;
+        camFovMult = 2.0;
         camOffsetY = 0.04;
         if (threeInitialized && camera && controls) {
-          camera.position.set(p.x - fc * 8.5, p.y - fs * 8.5, 3.6);
-          controls.target.set(p.x + fc * 12, p.y + fs * 12, 1.3);
+          camera.fov = 58;
+          camera.updateProjectionMatrix();
+          camera.position.set(p.x - fc * 6.5, p.y - fs * 6.5, 2.8);
+          controls.target.set(p.x + fc * 12, p.y + fs * 12, 1.2);
           controls.update();
         }
       } else if (mode === 'duel') {
@@ -2818,40 +2776,46 @@ HTML_TEMPLATE = """
         camTargetX = mx;
         camTargetY = my;
         camPitch = 0.24;
-        camDist = 15.0;
-        camFovMult = 1.9;
+        camDist = 10.0;
+        camFovMult = 2.0;
         camOffsetY = 0.04;
         if (threeInitialized && camera && controls) {
-          camera.position.set(mx + Math.cos(duelAngle) * 10.5, my + Math.sin(duelAngle) * 10.5, 3.8);
+          camera.fov = 56;
+          camera.updateProjectionMatrix();
+          camera.position.set(mx + Math.cos(duelAngle) * 8.5, my + Math.sin(duelAngle) * 8.5, 3.2);
           controls.target.set(mx, my, 1.2);
           controls.update();
         }
       } else if (mode === 'action') {
         // Dynamic Follow Ball (Sideline gliding with possession)
-        camYaw = 0.02;
-        camPitch = 0.45;
-        camDist = 65.0;
+        camYaw = 0.0;
+        camPitch = 0.52;
+        camDist = 58.0;
         camTargetX = bx;
         camTargetY = 34.0;
-        camFovMult = 1.5;
-        camOffsetY = 0.05;
+        camFovMult = 2.05;
+        camOffsetY = 0.02;
         if (threeInitialized && camera && controls) {
-          camera.position.set(bx, -30, 36);
-          controls.target.set(bx, 34, 0.5);
+          camera.fov = 46;
+          camera.updateProjectionMatrix();
+          camera.position.set(bx, -28.0, 34.0);
+          controls.target.set(bx, 34.0, 0.0);
           controls.update();
         }
       } else if (mode === 'goal') {
         // Behind Goal (Endzone view looking forward through posts)
         camYaw = -Math.PI / 2;
         camPitch = 0.22;
-        camDist = 55.0;
+        camDist = 60.0;
         camTargetX = 52.5;
         camTargetY = 34.0;
-        camFovMult = 1.8;
+        camFovMult = 1.9;
         camOffsetY = 0.02;
         if (threeInitialized && camera && controls) {
-          camera.position.set(-12, 34, 7.5);
-          controls.target.set(52.5, 34, 1.2);
+          camera.fov = 56;
+          camera.updateProjectionMatrix();
+          camera.position.set(-14.0, 34.0, 4.5);
+          controls.target.set(52.5, 34.0, 1.5);
           controls.update();
         }
       } else if (mode === 'dugout') {
@@ -2863,8 +2827,10 @@ HTML_TEMPLATE = """
         camFovMult = 1.8;
         camOffsetY = 0.02;
         if (threeInitialized && camera && controls) {
-          camera.position.set(bx, -2.5, 1.8);
-          controls.target.set(bx, 34, 1.0);
+          camera.fov = 58;
+          camera.updateProjectionMatrix();
+          camera.position.set(bx, -6.0, 2.2);
+          controls.target.set(bx, 34.0, 1.2);
           controls.update();
         }
       } else if (mode === 'top') {
@@ -2876,6 +2842,8 @@ HTML_TEMPLATE = """
         camFovMult = 1.4;
         camOffsetY = 0.0;
         if (threeInitialized && camera && controls) {
+          camera.fov = 45;
+          camera.updateProjectionMatrix();
           camera.position.set(52.5, 34, 95);
           controls.target.set(52.5, 34, 0);
           controls.update();
