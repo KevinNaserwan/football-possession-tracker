@@ -766,77 +766,62 @@ HTML_TEMPLATE = """
       </div>
     </div>
 
-    <!-- SUB-TOP: 90' Chapters Quick Navigator -->
-    <div class="hud-chapters-wrap">
+    <!-- BOTTOM FLOATING CONTROLS & COMPACT TELEMETRY (All HUD anchored to bottom, zero center obstruction) -->
+    <div class="hud-bottom-row" style="flex-direction: column; align-items: center; gap: 8px;">
+      <!-- 90' Chapters Quick Jump Pills (Anchored right above playback bar) -->
       <div class="chapters-bar" id="chapters-bar">
         {% for ch in metadata.chapters|default([]) %}
           <button class="chapter-btn {% if 'GOAL' in ch.label %}goal-chapter{% endif %}" data-min="{{ ch.min }}" onclick="jumpToMinute({{ ch.min }})">{{ ch.label }}</button>
         {% endfor %}
       </div>
-    </div>
 
-    <!-- MIDDLE FLOATING STATS PILLS (LEFT & RIGHT) -->
-    <div class="hud-middle-row">
-      <!-- Left Pill: Pitch Territory Control & Possession -->
-      <div class="hud-stat-pill">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <div class="hud-stat-title">TERRITORY CONTROL</div>
-          <span id="lbl-status" style="font-size: 0.68rem; font-weight: 800; color: var(--accent);">STABLE</span>
-        </div>
-        <div style="display: flex; gap: 12px; align-items: baseline; margin-top: 4px;">
-          <div><span class="hud-mono-val" style="color: var(--home);" id="stat-pc-home">{{ "%.1f"|format(home_pct) }}%</span> <span style="font-size: 0.68rem; color: var(--text-muted);">HOME</span></div>
-          <div style="color: rgba(255,255,255,0.2);">|</div>
-          <div><span class="hud-mono-val" style="color: var(--away);" id="stat-pc-away">{{ "%.1f"|format(away_pct) }}%</span> <span style="font-size: 0.68rem; color: var(--text-muted);">AWAY</span></div>
-        </div>
-        <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 5px; display: flex; justify-content: space-between;">
-          <span>Ball: <b id="lbl-player" style="color: #f3f4f6;">H10 (Lewandowski)</b></span>
-          <span>Team: <b id="lbl-team" style="color: var(--home);">Home</b></span>
-          <span style="display: none;" id="lbl-dist">0.42 m</span>
-          <span style="display: none;" id="lbl-pc-home">{{ "%.1f"|format(home_pct) }}%</span>
-          <span style="display: none;" id="lbl-pc-away">{{ "%.1f"|format(away_pct) }}%</span>
-        </div>
-      </div>
-
-      <!-- Right Pill: Ball Kinematics & Instantaneous Power -->
-      <div class="hud-stat-pill" style="min-width: 250px;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <div class="hud-stat-title">BALL KINEMATICS</div>
-          <span id="lbl-ball-state" style="font-size: 0.68rem; font-weight: 800; color: #facc15;">GROUND PASS ⚡</span>
-        </div>
-        <div style="display: flex; gap: 14px; align-items: baseline; margin-top: 4px;">
-          <div><span class="hud-mono-val" style="color: #f59e0b;" id="stat-speed">0.0 km/h</span> <span style="font-size: 0.68rem; color: var(--text-muted);">SPEED</span></div>
-          <div><span class="hud-mono-val" style="color: #a78bfa;" id="stat-z">0.0 m</span> <span style="font-size: 0.68rem; color: var(--text-muted);">Z ELEVATION</span></div>
-          <span style="display: none;" id="lbl-speed-val">0.0 km/h</span>
-          <span style="display: none;" id="lbl-z-val">0.00 m</span>
-        </div>
-        <div class="shot-gauge">
-          <div id="shot-meter" class="shot-fill"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- BOTTOM FLOATING CONTROLS CONSOLE -->
-    <div class="hud-bottom-row">
-      <div class="controls-pill">
+      <!-- Main Playback & Live Telemetry Strip -->
+      <div class="controls-pill" style="max-width: 96vw; width: 1100px;">
         <button id="btn-play" class="btn btn-play" onclick="togglePlay()">Play ▶</button>
         <button class="btn" onclick="stepFrame(-10)">-10s</button>
         <button class="btn" onclick="stepFrame(-1)">◀</button>
-        <div style="flex: 1; display: flex; flex-direction: column; gap: 3px;">
+        
+        <!-- Scrubber Slider -->
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 2px;">
           <input type="range" id="frame-slider" class="slider" min="1" max="{{ total_frames }}" value="1" oninput="onSlide(this.value)">
-          <div style="display: flex; justify-content: space-between; font-size: 0.65rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace;">
+          <div style="display: flex; justify-content: space-between; font-size: 0.62rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace;">
             <span>01' Kick-off</span>
-            <span>45' Halftime (HT)</span>
+            <span>45' HT</span>
             <span style="color: #ef4444; font-weight: 700;">89' ⚽ GOAL! (1-0)</span>
-            <span>90' Full Time (FT)</span>
+            <span>90' FT</span>
           </div>
         </div>
+
         <button class="btn" onclick="stepFrame(1)">▶</button>
         <button class="btn" onclick="stepFrame(10)">+10s</button>
-        <div style="display: flex; flex-direction: column; align-items: flex-end; font-family: 'JetBrains Mono'; font-weight: 700; min-width: 105px;">
-          <span style="color: #60a5fa; font-size: 0.96rem;" id="stat-clock">00:00</span>
-          <span id="frame-label" style="font-size: 0.68rem; color: var(--text-muted);">1 / {{ total_frames }}</span>
+
+        <!-- Compact Bottom Telemetry: Ball Speed & Possession (Unobtrusive) -->
+        <div style="display: flex; gap: 14px; align-items: center; padding: 0 10px; border-left: 1px solid rgba(255,255,255,0.12); font-family: 'JetBrains Mono', monospace; font-size: 0.75rem;">
+          <div><span style="color: var(--home); font-weight: 800;" id="stat-pc-home">{{ "%.1f"|format(home_pct) }}%</span> <span style="font-size: 0.65rem; color: var(--text-muted);">POSS</span> <span style="color: var(--away); font-weight: 800;" id="stat-pc-away">{{ "%.1f"|format(away_pct) }}%</span></div>
+          <div style="color: rgba(255,255,255,0.2);">|</div>
+          <div><span style="color: #f59e0b; font-weight: 800;" id="stat-speed">0.0 km/h</span> <span style="font-size: 0.65rem; color: var(--text-muted);" id="stat-z">0.0m</span></div>
+        </div>
+
+        <!-- Clock & Frames -->
+        <div style="display: flex; flex-direction: column; align-items: flex-end; font-family: 'JetBrains Mono'; font-weight: 700; min-width: 90px; border-left: 1px solid rgba(255,255,255,0.12); padding-left: 10px;">
+          <span style="color: #60a5fa; font-size: 0.94rem;" id="stat-clock">00:00</span>
+          <span id="frame-label" style="font-size: 0.65rem; color: var(--text-muted);">1 / {{ total_frames }}</span>
         </div>
       </div>
+    </div>
+
+    <!-- Hidden placeholders to avoid JS null reference errors -->
+    <div style="display: none;">
+      <span id="lbl-status">STABLE</span>
+      <span id="lbl-ball-state">GROUND PASS</span>
+      <span id="lbl-speed-val">0.0 km/h</span>
+      <span id="lbl-z-val">0.00 m</span>
+      <span id="lbl-player">H10</span>
+      <span id="lbl-team">Home</span>
+      <span id="lbl-dist">0.0 m</span>
+      <span id="lbl-pc-home">53.8%</span>
+      <span id="lbl-pc-away">46.2%</span>
+      <div id="shot-meter"></div>
     </div>
 
   </div>
@@ -877,8 +862,8 @@ HTML_TEMPLATE = """
         const initW = window.innerWidth;
         const initH = window.innerHeight;
         const aspect = initW / initH;
-        camera = new THREE.PerspectiveCamera(46, aspect, 0.1, 1000);
-        camera.position.set(52.5, -28.0, 34.0);
+        camera = new THREE.PerspectiveCamera(38, aspect, 0.1, 1000);
+        camera.position.set(52.5, -50.0, 54.0);
         camera.up.set(0, 0, 1);
 
         let createdRenderer = null;
@@ -1166,25 +1151,27 @@ HTML_TEMPLATE = """
 
     function createPlayerNameSprite(name, num) {
       const cvs = document.createElement('canvas');
-      cvs.width = 256;
+      cvs.width = 64;
       cvs.height = 64;
       const ctx = cvs.getContext('2d');
-      ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
-      ctx.roundRect ? ctx.roundRect(8, 8, 240, 48, 8) : ctx.fillRect(8, 8, 240, 48);
+      // Compact circular badge
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
+      ctx.beginPath();
+      ctx.arc(32, 32, 28, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+      ctx.lineWidth = 3;
       ctx.stroke();
       ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 26px monospace';
+      ctx.font = 'bold 30px "JetBrains Mono", monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(`#${num || ''} ${name || ''}`, 128, 32);
+      ctx.fillText(`${num || ''}`, 32, 33);
       const tex = new THREE.CanvasTexture(cvs);
       const spriteMat = new THREE.SpriteMaterial({ map: tex, transparent: true });
       const sprite = new THREE.Sprite(spriteMat);
-      sprite.scale.set(2.2, 0.55, 1);
-      sprite.position.z = 2.30;
+      sprite.scale.set(0.75, 0.75, 1);
+      sprite.position.z = 2.10;
       return sprite;
     }
 
@@ -1306,8 +1293,8 @@ HTML_TEMPLATE = """
       pGroup.add(nameSprite);
       pGroup.userData.nameSprite = nameSprite;
 
-      // Caricature Scaling for broadcast & tactical visibility (FIFA / FM Style)
-      pGroup.scale.set(1.25, 1.25, 1.25);
+      // Natural true-to-scale player proportions for realistic broadcast
+      pGroup.scale.set(1.0, 1.0, 1.0);
 
       scene.add(pGroup);
       playerMeshes[id] = pGroup;
@@ -2274,8 +2261,8 @@ HTML_TEMPLATE = """
         camTargetX += (f.ball.x - camTargetX) * 0.18;
         if (threeInitialized && camera && controls) {
           camera.position.x += (f.ball.x - camera.position.x) * 0.18;
-          camera.position.y = -28.0;
-          camera.position.z = 34.0;
+          camera.position.y = -50.0;
+          camera.position.z = 54.0;
           controls.target.x = camera.position.x;
           controls.target.y = 34.0;
           controls.target.z = 0.0;
@@ -2729,18 +2716,18 @@ HTML_TEMPLATE = """
       const by = f ? f.ball.y : 34.0;
 
       if (mode === 'broadcast') {
-        // FIFA Pitch Broadcast (Expansive sideline grandstand angle filling the screen)
+        // FIFA Pitch Broadcast (Long-range TV telephoto camera capturing entire 22 players and both goals)
         camYaw = 0.0;
-        camPitch = 0.52;
-        camDist = 58.0;
+        camPitch = 0.58;
+        camDist = 88.0;
         camTargetX = 52.5;
         camTargetY = 34.0;
-        camFovMult = 2.05;
-        camOffsetY = 0.02;
+        camFovMult = 1.45;
+        camOffsetY = 0.0;
         if (threeInitialized && camera && controls) {
-          camera.fov = 46;
+          camera.fov = 38;
           camera.updateProjectionMatrix();
-          camera.position.set(52.5, -28.0, 34.0);
+          camera.position.set(52.5, -50.0, 54.0);
           controls.target.set(52.5, 34.0, 0.0);
           controls.update();
         }
@@ -2787,18 +2774,18 @@ HTML_TEMPLATE = """
           controls.update();
         }
       } else if (mode === 'action') {
-        // Dynamic Follow Ball (Sideline gliding with possession)
+        // Dynamic Follow Ball (Sideline gliding with possession at long-range TV height)
         camYaw = 0.0;
-        camPitch = 0.52;
-        camDist = 58.0;
+        camPitch = 0.58;
+        camDist = 88.0;
         camTargetX = bx;
         camTargetY = 34.0;
-        camFovMult = 2.05;
-        camOffsetY = 0.02;
+        camFovMult = 1.45;
+        camOffsetY = 0.0;
         if (threeInitialized && camera && controls) {
-          camera.fov = 46;
+          camera.fov = 38;
           camera.updateProjectionMatrix();
-          camera.position.set(bx, -28.0, 34.0);
+          camera.position.set(bx, -50.0, 54.0);
           controls.target.set(bx, 34.0, 0.0);
           controls.update();
         }
