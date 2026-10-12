@@ -1,5 +1,6 @@
 import os
 import json
+import math
 from flask import Flask, render_template_string, jsonify
 from src.metrica_parser import MetricaTrackingParser
 from src.pipeline import FullPossessionPipeline
@@ -13,13 +14,14 @@ pipeline = FullPossessionPipeline()
 DATASET_FILE = "data/sample_match_tracking.json"
 frames = parser.load_json_match(DATASET_FILE) if os.path.exists(DATASET_FILE) else []
 
-# Precompute telemetry and pitch control surfaces for all frames (lightning fast in-memory)
 processed_frames = []
 home_count = 0
 away_count = 0
 contested_count = 0
 turnovers = []
 last_team = None
+
+print(f"Pre-calculating telemetry & pitch control metrics for {len(frames)} frames...")
 
 for f in frames:
     res = pipeline.process_frame(f)
@@ -34,24 +36,25 @@ for f in frames:
     if last_team and team and team != last_team and team != "Contested":
         turnovers.append({
             "frame_id": f["frame_id"],
+            "match_time": f.get("match_time", "14:00"),
             "from": last_team,
             "to": team
         })
     if team and team != "Contested":
         last_team = team
 
-    # Extract downsampled 20x13 pitch control grid for instant JSON delivery
+    # Downsampled pitch control grid
     pc_surface = pipeline.pitch_control_engine.calculate_pitch_control_surface(
         [p for p in f['players'] if p['team'] == 'Home'],
         [p for p in f['players'] if p['team'] == 'Away']
     )['home_surface']
     
-    # Downsample matrix to 20x13 floats rounded to 2 decimals
     h_down = pc_surface[::2, ::2]
     surface_grid = [[round(float(v), 2) for v in row] for row in h_down]
 
     processed_frames.append({
         "frame_id": f["frame_id"],
+        "match_time": f.get("match_time", "14:00"),
         "ball": f["ball"],
         "players": f["players"],
         "possession": res,
@@ -59,6 +62,7 @@ for f in frames:
     })
 
 total_frames = max(1, len(frames))
+print("Pre-computation finished! Ready for high-speed streaming.")
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -66,17 +70,21 @@ HTML_TEMPLATE = """
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Barça Innovation Hub · Ultra-Fast 60 FPS Tactical Pitch Control UI</title>
+  <title>Barça Innovation Hub · 3D Interactive Tactical Pitch & Kinematics Engine</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <!-- Three.js & OrbitControls from CDN for high-end international 3D stadium presentation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
   <style>
     :root {
-      --bg: #07090e;
-      --card: rgba(18, 22, 34, 0.85);
+      --bg: #06080d;
+      --card: rgba(15, 20, 32, 0.88);
       --border: rgba(255, 255, 255, 0.08);
       --accent: #10b981;
       --home: #ef4444;
       --away: #3b82f6;
+      --ball: #ffffff;
       --text: #f3f4f6;
       --text-muted: #9ca3af;
     }
@@ -86,19 +94,19 @@ HTML_TEMPLATE = """
       color: var(--text);
       font-family: 'Plus Jakarta Sans', sans-serif;
       min-height: 100vh;
-      padding: 24px;
+      padding: 20px 24px;
       display: flex;
       flex-direction: column;
-      gap: 20px;
+      gap: 16px;
     }
     .header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 16px 24px;
+      padding: 14px 22px;
       background: var(--card);
       border: 1px solid var(--border);
-      border-radius: 16px;
+      border-radius: 14px;
       backdrop-filter: blur(12px);
     }
     .badge {
@@ -114,73 +122,121 @@ HTML_TEMPLATE = """
       font-family: 'JetBrains Mono', monospace;
       font-weight: 600;
     }
+    .view-toggle {
+      display: inline-flex;
+      background: rgba(0, 0, 0, 0.4);
+      padding: 3px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .view-btn {
+      padding: 5px 14px;
+      border-radius: 6px;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .view-btn.active {
+      background: var(--accent);
+      color: #000;
+    }
     .stats-grid {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 16px;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 14px;
     }
     .stat-card {
       background: var(--card);
       border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 18px;
+      border-radius: 12px;
+      padding: 14px 16px;
     }
     .stat-label {
-      font-size: 0.76rem;
+      font-size: 0.74rem;
       color: var(--text-muted);
       text-transform: uppercase;
       font-family: 'JetBrains Mono', monospace;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
     }
     .stat-val {
-      font-size: 1.65rem;
+      font-size: 1.5rem;
       font-weight: 800;
+      letter-spacing: -0.02em;
     }
     .main-grid {
       display: grid;
       grid-template-columns: 1fr 340px;
-      gap: 20px;
+      gap: 16px;
     }
     .viewport-card {
       background: var(--card);
       border: 1px solid var(--border);
-      border-radius: 18px;
-      padding: 20px;
+      border-radius: 16px;
+      padding: 16px;
       display: flex;
       flex-direction: column;
-      align-items: center;
-      gap: 16px;
-    }
-    .canvas-container {
-      width: 100%;
+      gap: 14px;
       position: relative;
-      background: #092c15;
-      border-radius: 14px;
+    }
+    .view-stage {
+      width: 100%;
+      height: 520px;
+      position: relative;
+      border-radius: 12px;
       overflow: hidden;
       border: 1px solid var(--border);
-      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+      background: #040608;
     }
-    canvas {
-      display: block;
+    #three-canvas-container {
       width: 100%;
-      height: auto;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+    #pitch-2d-canvas {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      display: none;
+    }
+    .hud-overlay {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      background: rgba(7, 10, 16, 0.75);
+      border: 1px solid var(--border);
+      padding: 8px 14px;
+      border-radius: 8px;
+      backdrop-filter: blur(8px);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      z-index: 10;
+      pointer-events: none;
     }
     .controls {
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 12px;
       width: 100%;
-      padding: 12px 18px;
-      background: rgba(0, 0, 0, 0.45);
-      border-radius: 12px;
+      padding: 10px 16px;
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 10px;
       border: 1px solid var(--border);
     }
     .btn {
       background: #1f2937;
       color: var(--text);
       border: 1px solid var(--border);
-      padding: 9px 18px;
-      border-radius: 8px;
+      padding: 7px 16px;
+      border-radius: 6px;
+      font-size: 0.85rem;
       font-weight: 600;
       cursor: pointer;
       transition: all 0.2s;
@@ -197,129 +253,163 @@ HTML_TEMPLATE = """
     .sidebar {
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 14px;
     }
     .frame-info {
       background: var(--card);
       border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 18px;
+      border-radius: 12px;
+      padding: 16px;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 10px;
     }
     .info-row {
       display: flex;
       justify-content: space-between;
-      font-size: 0.88rem;
+      font-size: 0.86rem;
     }
     .info-val { font-family: 'JetBrains Mono', monospace; font-weight: 600; }
-    .legend-box {
-      display: flex;
-      gap: 14px;
-      margin-top: 4px;
-      font-size: 0.8rem;
+    .shot-gauge {
+      margin-top: 6px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 6px;
+      height: 10px;
+      overflow: hidden;
+      border: 1px solid var(--border);
     }
-    .legend-item { display: flex; align-items: center; gap: 6px; }
-    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .shot-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #10b981, #f59e0b, #ef4444);
+      width: 0%;
+      transition: width 0.08s ease;
+    }
+    .hint-box {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+      padding: 8px 12px;
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 8px;
+    }
   </style>
 </head>
 <body>
   <div class="header">
     <div>
-      <h2 style="letter-spacing: -0.02em;">⚽ Football Possession & Pitch Control Engine</h2>
-      <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 4px;">More Than a Hack 2027 · Barça Innovation Hub & Metrica Sports</p>
+      <h2 style="letter-spacing: -0.02em;">⚽ 3D Tactical Pitch Control & Ball Kinematics</h2>
+      <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 2px;">More Than a Hack 2027 · Barça Innovation Hub & Metrica Sports</p>
     </div>
-    <div class="badge">● 60 FPS HARDWARE ACCELERATED CANVAS</div>
+    <div style="display: flex; align-items: center; gap: 14px;">
+      <div class="view-toggle">
+        <button id="btn-view-3d" class="view-btn active" onclick="switchView('3d')">3D Stadium</button>
+        <button id="btn-view-2d" class="view-btn" onclick="switchView('2d')">2D Planar</button>
+      </div>
+      <div class="badge">● MATCH CLOCK SYNC</div>
+    </div>
   </div>
 
   <div class="stats-grid">
     <div class="stat-card">
-      <div class="stat-label">Home Team Control</div>
+      <div class="stat-label">Match Clock</div>
+      <div class="stat-val" style="color: #60a5fa;" id="stat-clock">14:00</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Home Territory Control</div>
       <div class="stat-val" style="color: var(--home);">{{ "%.1f"|format(home_pct) }}%</div>
     </div>
     <div class="stat-card">
-      <div class="stat-label">Away Team Control</div>
+      <div class="stat-label">Away Territory Control</div>
       <div class="stat-val" style="color: var(--away);">{{ "%.1f"|format(away_pct) }}%</div>
     </div>
     <div class="stat-card">
-      <div class="stat-label">Playback Performance</div>
-      <div class="stat-val" style="color: var(--accent);" id="lbl-fps">60.0 FPS</div>
+      <div class="stat-label">Ball Elevation (Z)</div>
+      <div class="stat-val" style="color: #a78bfa;" id="stat-z">0.0 m</div>
     </div>
     <div class="stat-card">
-      <div class="stat-label">Total Turnovers</div>
-      <div class="stat-val">{{ turnovers|length }}</div>
+      <div class="stat-label">Shot / Ball Speed</div>
+      <div class="stat-val" style="color: #f59e0b;" id="stat-speed">0.0 km/h</div>
     </div>
   </div>
 
   <div class="main-grid">
     <div class="viewport-card">
-      <div class="canvas-container">
-        <canvas id="pitch-canvas" width="1050" height="680"></canvas>
+      <div class="view-stage">
+        <div class="hud-overlay" id="hud-camera-info">
+          🎥 3D Orbit Camera: Left Click to Rotate | Right Click to Pan | Scroll to Zoom
+        </div>
+        <div id="three-canvas-container"></div>
+        <canvas id="pitch-2d-canvas" width="1050" height="680"></canvas>
       </div>
       
       <div class="controls">
         <button id="btn-play" class="btn btn-play" onclick="togglePlay()">Play ▶</button>
-        <button class="btn" onclick="stepFrame(-1)">◀ Prev</button>
+        <button class="btn" onclick="stepFrame(-10)">-10s</button>
+        <button class="btn" onclick="stepFrame(-1)">◀</button>
         <input type="range" id="frame-slider" class="slider" min="1" max="{{ total_frames }}" value="1" oninput="onSlide(this.value)">
-        <button class="btn" onclick="stepFrame(1)">Next ▶</button>
-        <span id="frame-label" style="font-family: 'JetBrains Mono'; font-weight: 600; min-width: 90px; text-align: right;">1 / {{ total_frames }}</span>
+        <button class="btn" onclick="stepFrame(1)">▶</button>
+        <button class="btn" onclick="stepFrame(10)">+10s</button>
+        <span id="frame-label" style="font-family: 'JetBrains Mono'; font-weight: 600; min-width: 100px; text-align: right;">1 / {{ total_frames }}</span>
       </div>
 
-      <div class="legend-box">
-        <div class="legend-item"><span class="dot" style="background: var(--home);"></span> Home Players (Red)</div>
-        <div class="legend-item"><span class="dot" style="background: var(--away);"></span> Away Players (Blue)</div>
-        <div class="legend-item"><span class="dot" style="background: #ffffff; border: 1px solid #000;"></span> Ball</div>
-        <div class="legend-item"><span class="dot" style="background: #eab308;"></span> Velocity Vectors</div>
+      <div class="hint-box">
+        💡 <strong>Continuous Match Playback:</strong> Tidak looping! Simulasi merepresentasikan rangkaian fase taktikal riil: <em>Buildup kiper $\rightarrow$ Umpan sayap $\rightarrow$ Duel perebutan lini tengah $\rightarrow$ Counter-attack cepat $\rightarrow$ Aerial Cross $\rightarrow$ Tendangan keras ke gawang</em>.
       </div>
     </div>
 
     <div class="sidebar">
       <div class="frame-info">
-        <h4 style="margin-bottom: 4px;">Live Frame Telemetry</h4>
+        <h4 style="margin-bottom: 2px;">Ball Kinematics & Power</h4>
         <div class="info-row">
-          <span style="color: var(--text-muted);">Frame Index</span>
-          <span id="lbl-frame-id" class="info-val">#1</span>
+          <span style="color: var(--text-muted);">Instantaneous Speed</span>
+          <span id="lbl-speed-val" class="info-val">0.0 km/h</span>
         </div>
+        <div class="shot-gauge">
+          <div id="shot-meter" class="shot-fill"></div>
+        </div>
+        <div class="info-row">
+          <span style="color: var(--text-muted);">Flight Elevation (Z)</span>
+          <span id="lbl-z-val" class="info-val">0.00 m</span>
+        </div>
+        <div class="info-row">
+          <span style="color: var(--text-muted);">Ball State</span>
+          <span id="lbl-ball-state" class="info-val" style="color: var(--accent);">GROUND PASS</span>
+        </div>
+      </div>
+
+      <div class="frame-info">
+        <h4 style="margin-bottom: 2px;">Live Possession Telemetry</h4>
         <div class="info-row">
           <span style="color: var(--text-muted);">Possessing Team</span>
           <span id="lbl-team" class="info-val" style="color: var(--home);">Home</span>
         </div>
         <div class="info-row">
-          <span style="color: var(--text-muted);">Controlling Player</span>
-          <span id="lbl-player" class="info-val">H10</span>
+          <span style="color: var(--text-muted);">Active Player</span>
+          <span id="lbl-player" class="info-val">H1</span>
         </div>
         <div class="info-row">
           <span style="color: var(--text-muted);">Ball Proximity</span>
-          <span id="lbl-dist" class="info-val">0.33 m</span>
+          <span id="lbl-dist" class="info-val">0.2 m</span>
         </div>
         <div class="info-row">
-          <span style="color: var(--text-muted);">Confidence Score</span>
-          <span id="lbl-conf" class="info-val">83.4%</span>
-        </div>
-        <div class="info-row">
-          <span style="color: var(--text-muted);">Markov State Filter</span>
+          <span style="color: var(--text-muted);">Possession Stability</span>
           <span id="lbl-status" class="info-val" style="color: var(--accent);">STABLE</span>
         </div>
       </div>
 
       <div class="frame-info">
-        <h4 style="margin-bottom: 4px;">Spearman Pitch Control</h4>
+        <h4 style="margin-bottom: 2px;">Spearman Spatial Territory</h4>
         <div class="info-row">
-          <span style="color: var(--text-muted);">Home Control Area</span>
-          <span id="lbl-pc-home" class="info-val" style="color: var(--home);">50.5%</span>
+          <span style="color: var(--text-muted);">Home Control</span>
+          <span id="lbl-pc-home" class="info-val" style="color: var(--home);">50.0%</span>
         </div>
         <div class="info-row">
-          <span style="color: var(--text-muted);">Away Control Area</span>
-          <span id="lbl-pc-away" class="info-val" style="color: var(--away);">49.5%</span>
+          <span style="color: var(--text-muted);">Away Control</span>
+          <span id="lbl-pc-away" class="info-val" style="color: var(--away);">50.0%</span>
         </div>
         <div class="info-row">
-          <span style="color: var(--text-muted);">Model Algorithm</span>
-          <span class="info-val">Kinematic Delta-T</span>
-        </div>
-        <div class="info-row">
-          <span style="color: var(--text-muted);">Jitter Reduction</span>
-          <span class="info-val" style="color: var(--accent);">Kalman Trajectory</span>
+          <span style="color: var(--text-muted);">3D Stadium Model</span>
+          <span class="info-val">WebGL / Three.js</span>
         </div>
       </div>
     </div>
@@ -331,159 +421,240 @@ HTML_TEMPLATE = """
     let currentFrame = 1;
     let isPlaying = false;
     let playTimer = null;
+    let activeView = '3d';
 
-    const canvas = document.getElementById('pitch-canvas');
-    const ctx = canvas.getContext('2d');
-    const PITCH_W = 105;
-    const PITCH_H = 68;
-    const SCALE_X = canvas.width / PITCH_W;
-    const SCALE_Y = canvas.height / PITCH_H;
+    // ---------------- THREE.JS 3D ENGINE INITIALIZATION ----------------
+    const container = document.getElementById('three-canvas-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x06090e);
 
-    function toCanvasX(x) { return x * SCALE_X; }
-    function toCanvasY(y) { return (PITCH_H - y) * SCALE_Y; } // Invert Y for football top-down orientation
+    const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+    camera.position.set(52.5, -60, 65); // Angled stadium broadcast view
+    camera.up.set(0, 0, 1); // Z is vertical height!
 
-    function drawPitchLines() {
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.75)";
-      ctx.lineWidth = 2.5;
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.shadowMap.enabled = true;
+    container.appendChild(renderer.domElement);
 
-      // Outer boundary
-      ctx.strokeRect(0, 0, canvas.width, canvas.height);
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.target.set(52.5, 34, 0); // Pitch center
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.maxPolarAngle = Math.PI / 2.05; // Prevent camera clipping below ground
 
-      // Halfway line
-      ctx.beginPath();
-      ctx.moveTo(canvas.width / 2, 0);
-      ctx.lineTo(canvas.width / 2, canvas.height);
-      ctx.stroke();
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.65);
+    scene.add(ambientLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.7);
+    dirLight.position.set(52.5, -40, 90);
+    dirLight.castShadow = true;
+    scene.add(dirLight);
+
+    // 3D Pitch Turf Mesh (105m x 68m)
+    const pitchGeometry = new THREE.PlaneGeometry(105, 68);
+    const pitchMaterial = new THREE.MeshStandardMaterial({ color: 0x0c381a, roughness: 0.8, metalness: 0.1 });
+    const pitchMesh = new THREE.Mesh(pitchGeometry, pitchMaterial);
+    pitchMesh.position.set(52.5, 34, 0);
+    scene.add(pitchMesh);
+
+    // 3D Pitch Lines Wireframe
+    function create3DPitchLines() {
+      const lineMat = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 2 });
+      
+      // Perimeter
+      const points = [
+        new THREE.Vector3(0, 0, 0.02),
+        new THREE.Vector3(105, 0, 0.02),
+        new THREE.Vector3(105, 68, 0.02),
+        new THREE.Vector3(0, 68, 0.02),
+        new THREE.Vector3(0, 0, 0.02)
+      ];
+      scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), lineMat));
+
+      // Halfway
+      const halfPts = [new THREE.Vector3(52.5, 0, 0.02), new THREE.Vector3(52.5, 68, 0.02)];
+      scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(halfPts), lineMat));
 
       // Center circle
-      ctx.beginPath();
-      ctx.arc(canvas.width / 2, canvas.height / 2, 9.15 * SCALE_X, 0, Math.PI * 2);
-      ctx.stroke();
-
-      // Center spot
-      ctx.fillStyle = "#ffffff";
-      ctx.beginPath();
-      ctx.arc(canvas.width / 2, canvas.height / 2, 4, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Penalty boxes (16.5m x 40.32m)
-      const penW = 16.5 * SCALE_X;
-      const penH = 40.32 * SCALE_Y;
-      const penY = ((PITCH_H - 40.32) / 2) * SCALE_Y;
-
-      ctx.strokeRect(0, penY, penW, penH);
-      ctx.strokeRect(canvas.width - penW, penY, penW, penH);
-
-      // 6-yard boxes (5.5m x 18.32m)
-      const sixW = 5.5 * SCALE_X;
-      const sixH = 18.32 * SCALE_Y;
-      const sixY = ((PITCH_H - 18.32) / 2) * SCALE_Y;
-
-      ctx.strokeRect(0, sixY, sixW, sixH);
-      ctx.strokeRect(canvas.width - sixW, sixY, sixW, sixH);
-    }
-
-    function drawPitchControlHeatmap(grid) {
-      if (!grid || !grid.length) return;
-      const rows = grid.length;
-      const cols = grid[0].length;
-      const cellW = canvas.width / cols;
-      const cellH = canvas.height / rows;
-
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-          const homeProb = grid[r][c]; // 0.0 (Away) to 1.0 (Home)
-          if (homeProb > 0.5) {
-            const alpha = (homeProb - 0.5) * 0.45;
-            ctx.fillStyle = `rgba(239, 68, 68, ${alpha})`;
-          } else {
-            const alpha = (0.5 - homeProb) * 0.45;
-            ctx.fillStyle = `rgba(59, 130, 246, ${alpha})`;
-          }
-          ctx.fillRect(c * cellW, (rows - 1 - r) * cellH, cellW, cellH);
-        }
+      const circlePts = [];
+      for (let i = 0; i <= 64; i++) {
+        const theta = (i / 64) * Math.PI * 2;
+        circlePts.push(new THREE.Vector3(52.5 + Math.cos(theta) * 9.15, 34 + Math.sin(theta) * 9.15, 0.02));
       }
+      scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(circlePts), lineMat));
+
+      // Goal nets (3D Goals!)
+      function addGoal(x, yMin, yMax) {
+        const goalMat = new THREE.LineBasicMaterial({ color: 0xe5e7eb, linewidth: 2 });
+        const postH = 2.44; // 2.44m standard goal height
+        const gPts = [
+          new THREE.Vector3(x, yMin, 0),
+          new THREE.Vector3(x, yMin, postH),
+          new THREE.Vector3(x, yMax, postH),
+          new THREE.Vector3(x, yMax, 0)
+        ];
+        scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(gPts), goalMat));
+      }
+      addGoal(0, 30.34, 37.66);
+      addGoal(105, 30.34, 37.66);
+    }
+    create3DPitchLines();
+
+    // 3D Player Meshes Map
+    const playerMeshes = {};
+    const ballMesh = new THREE.Mesh(
+      new THREE.SphereGeometry(0.55, 16, 16),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2, metalness: 0.1 })
+    );
+    ballMesh.castShadow = true;
+    scene.add(ballMesh);
+
+    // Ball Shadow Ring on Turf
+    const ballShadow = new THREE.Mesh(
+      new THREE.RingGeometry(0.2, 0.7, 16),
+      new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.5, side: THREE.DoubleSide })
+    );
+    ballShadow.position.z = 0.03;
+    scene.add(ballShadow);
+
+    function getOrCreatePlayerMesh(id, team) {
+      if (!playerMeshes[id]) {
+        const group = new THREE.Group();
+        
+        // 3D Player Capsule/Cylinder Body
+        const bodyGeo = new THREE.CylinderGeometry(0.4, 0.4, 1.75, 12);
+        bodyGeo.rotateX(Math.PI / 2); // Orient upright along Z
+        const bodyMat = new THREE.MeshStandardMaterial({
+          color: team === 'Home' ? 0xef4444 : 0x3b82f6,
+          roughness: 0.4
+        });
+        const body = new THREE.Mesh(bodyGeo, bodyMat);
+        body.position.z = 0.88;
+        group.add(body);
+
+        // Head
+        const headGeo = new THREE.SphereGeometry(0.32, 12, 12);
+        const headMat = new THREE.MeshStandardMaterial({ color: 0xfde047 });
+        const head = new THREE.Mesh(headGeo, headMat);
+        head.position.z = 1.95;
+        group.add(head);
+
+        scene.add(group);
+        playerMeshes[id] = group;
+      }
+      return playerMeshes[id];
     }
 
-    function render(frameIdx) {
-      const frameData = matchData[frameIdx - 1];
-      if (!frameData) return;
+    function animate3D() {
+      requestAnimationFrame(animate3D);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate3D();
 
-      // 1. Clear & Background
-      ctx.fillStyle = "#0c381a"; // Lush grass green
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // ---------------- 2D CANVAS FALLBACK ----------------
+    const canvas2D = document.getElementById('pitch-2d-canvas');
+    const ctx2D = canvas2D.getContext('2d');
+    const SCALE_X = canvas2D.width / 105;
+    const SCALE_Y = canvas2D.height / 68;
 
-      // 2. Draw Spearman Pitch Control Probability Surface
-      drawPitchControlHeatmap(frameData.grid);
+    function render2D(frameData) {
+      ctx2D.fillStyle = "#0c381a";
+      ctx2D.fillRect(0, 0, canvas2D.width, canvas2D.height);
 
-      // 3. Draw Pitch Markings
-      drawPitchLines();
+      // Lines
+      ctx2D.strokeStyle = "rgba(255, 255, 255, 0.8)";
+      ctx2D.lineWidth = 2;
+      ctx2D.strokeRect(0, 0, canvas2D.width, canvas2D.height);
+      ctx2D.beginPath();
+      ctx2D.moveTo(canvas2D.width / 2, 0);
+      ctx2D.lineTo(canvas2D.width / 2, canvas2D.height);
+      ctx2D.stroke();
+      ctx2D.beginPath();
+      ctx2D.arc(canvas2D.width / 2, canvas2D.height / 2, 9.15 * SCALE_X, 0, Math.PI * 2);
+      ctx2D.stroke();
 
-      // 4. Draw Players with velocity vectors
+      // Players
       frameData.players.forEach(p => {
-        const cx = toCanvasX(p.x);
-        const cy = toCanvasY(p.y);
-        const isHome = p.team === 'Home';
-
-        // Velocity vector arrow
-        if (Math.abs(p.vx) > 0.1 || Math.abs(p.vy) > 0.1) {
-          ctx.strokeStyle = "#facc15";
-          ctx.lineWidth = 2.5;
-          ctx.beginPath();
-          ctx.moveTo(cx, cy);
-          ctx.lineTo(cx + p.vx * 15, cy - p.vy * 15);
-          ctx.stroke();
-        }
-
-        // Player marker
-        ctx.fillStyle = isHome ? "#ef4444" : "#3b82f6";
-        ctx.strokeStyle = "#ffffff";
-        ctx.lineWidth = 2.2;
-        ctx.beginPath();
-        ctx.arc(cx, cy, 9, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-
-        // Player ID label
-        ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 10px 'JetBrains Mono'";
-        ctx.textAlign = "center";
-        ctx.fillText(p.id, cx, cy - 12);
+        const cx = p.x * SCALE_X;
+        const cy = (68 - p.y) * SCALE_Y;
+        ctx2D.fillStyle = p.team === 'Home' ? "#ef4444" : "#3b82f6";
+        ctx2D.beginPath();
+        ctx2D.arc(cx, cy, 8, 0, Math.PI * 2);
+        ctx2D.fill();
+        ctx2D.fillStyle = "#fff";
+        ctx2D.font = "bold 9px 'JetBrains Mono'";
+        ctx2D.fillText(p.id, cx - 6, cy - 10);
       });
 
-      // 5. Draw Ball
-      if (frameData.ball) {
-        const bx = toCanvasX(frameData.ball.x);
-        const by = toCanvasY(frameData.ball.y);
+      // Ball
+      const bx = frameData.ball.x * SCALE_X;
+      const by = (68 - frameData.ball.y) * SCALE_Y;
+      ctx2D.fillStyle = "#ffffff";
+      ctx2D.beginPath();
+      ctx2D.arc(bx, by, 6, 0, Math.PI * 2);
+      ctx2D.fill();
+    }
 
-        ctx.fillStyle = "#ffffff";
-        ctx.strokeStyle = "#000000";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(bx, by, 7, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
+    // ---------------- FRAME RENDERER CONTROLLER ----------------
+    function render(frameIdx) {
+      const f = matchData[frameIdx - 1];
+      if (!f) return;
 
-        // Ball glow
-        ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
-        ctx.beginPath();
-        ctx.arc(bx, by, 12, 0, Math.PI * 2);
-        ctx.fill();
+      // Update 3D Positions
+      f.players.forEach(p => {
+        const mesh = getOrCreatePlayerMesh(p.id, p.team);
+        mesh.position.set(p.x, p.y, p.z || 0);
+      });
+
+      // Update 3D Ball Position with Z elevation
+      const bz = Math.max(0.28, f.ball.z || 0);
+      ballMesh.position.set(f.ball.x, f.ball.y, bz);
+      ballShadow.position.set(f.ball.x, f.ball.y, 0.03);
+      ballShadow.scale.setScalar(Math.max(0.4, 1.0 - (bz * 0.08)));
+
+      if (activeView === '2d') {
+        render2D(f);
       }
 
-      // 6. Update Sidebar Indicators
-      const poss = frameData.possession;
+      // Update HUD & Telemetry
       document.getElementById('frame-slider').value = frameIdx;
       document.getElementById('frame-label').textContent = `${frameIdx} / ${maxFrames}`;
-      document.getElementById('lbl-frame-id').textContent = `#${frameIdx}`;
+      document.getElementById('stat-clock').textContent = f.match_time || "14:00";
+      document.getElementById('stat-z').textContent = (f.ball.z || 0).toFixed(2) + " m";
+      document.getElementById('lbl-z-val').textContent = (f.ball.z || 0).toFixed(2) + " m";
 
+      const speed = f.ball.speed_kmh || 0;
+      document.getElementById('stat-speed').textContent = speed.toFixed(1) + " km/h";
+      document.getElementById('lbl-speed-val').textContent = speed.toFixed(1) + " km/h";
+
+      // Shot Power Gauge (0 to 120 km/h)
+      const pct = Math.min(100, (speed / 120) * 100);
+      document.getElementById('shot-meter').style.width = pct + "%";
+
+      // Ball State (Ground pass vs Aerial flight vs Strike)
+      const bStateEl = document.getElementById('lbl-ball-state');
+      if (f.ball.z > 2.0 && speed > 60) {
+        bStateEl.textContent = "POWER STRIKE 🔥";
+        bStateEl.style.color = "#ef4444";
+      } else if (f.ball.z > 1.2) {
+        bStateEl.textContent = "AERIAL FLIGHT / CROSS ✈️";
+        bStateEl.style.color = "#a78bfa";
+      } else {
+        bStateEl.textContent = "GROUND PASS / CONTROL";
+        bStateEl.style.color = "var(--accent)";
+      }
+
+      // Possession Sidebar
+      const poss = f.possession;
       const teamEl = document.getElementById('lbl-team');
       teamEl.textContent = poss.smoothed_team || 'Contested';
       teamEl.style.color = poss.smoothed_team === 'Home' ? 'var(--home)' : (poss.smoothed_team === 'Away' ? 'var(--away)' : '#eab308');
 
       document.getElementById('lbl-player').textContent = poss.possessing_player || 'Contested Ball';
       document.getElementById('lbl-dist').textContent = (poss.min_distance || 0).toFixed(2) + ' m';
-      document.getElementById('lbl-conf').textContent = ((poss.confidence || 0) * 100).toFixed(1) + '%';
       
       const statusEl = document.getElementById('lbl-status');
       statusEl.textContent = poss.is_stable ? 'STABLE' : 'TRANSITION';
@@ -493,6 +664,17 @@ HTML_TEMPLATE = """
         document.getElementById('lbl-pc-home').textContent = poss.home_pitch_control_pct.toFixed(1) + '%';
         document.getElementById('lbl-pc-away').textContent = poss.away_pitch_control_pct.toFixed(1) + '%';
       }
+    }
+
+    function switchView(view) {
+      activeView = view;
+      document.getElementById('btn-view-3d').classList.toggle('active', view === '3d');
+      document.getElementById('btn-view-2d').classList.toggle('active', view === '2d');
+      
+      document.getElementById('three-canvas-container').style.display = view === '3d' ? 'block' : 'none';
+      document.getElementById('pitch-2d-canvas').style.display = view === '2d' ? 'block' : 'none';
+      document.getElementById('hud-camera-info').style.display = view === '3d' ? 'block' : 'none';
+      render(currentFrame);
     }
 
     function onSlide(val) {
@@ -512,9 +694,14 @@ HTML_TEMPLATE = """
         btn.textContent = 'Pause ⏸';
         btn.style.background = '#e11d48';
         playTimer = setInterval(() => {
-          currentFrame = (currentFrame >= maxFrames) ? 1 : currentFrame + 1;
+          if (currentFrame >= maxFrames) {
+            // STOP at end instead of infinite repeating loop!
+            togglePlay();
+            return;
+          }
+          currentFrame += 1;
           render(currentFrame);
-        }, 40); // 25 FPS match replay timing
+        }, 40); // 25 FPS match velocity
       } else {
         btn.textContent = 'Play ▶';
         btn.style.background = 'var(--accent)';
@@ -522,7 +709,14 @@ HTML_TEMPLATE = """
       }
     }
 
-    // Initial first frame render
+    // Window Resize Handling
+    window.addEventListener('resize', () => {
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    });
+
+    // Render Initial Frame
     render(1);
   </script>
 </body>
@@ -539,15 +733,6 @@ def index():
         turnovers=turnovers,
         match_data_json=json.dumps(processed_frames)
     )
-
-@app.route("/api/match/summary")
-def match_summary():
-    return jsonify({
-        "total_frames": total_frames,
-        "home_pct": round((home_count / total_frames) * 100.0, 2),
-        "away_pct": round((away_count / total_frames) * 100.0, 2),
-        "turnovers": turnovers
-    })
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
