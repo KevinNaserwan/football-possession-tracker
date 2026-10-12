@@ -541,9 +541,19 @@ HTML_TEMPLATE = """
       grid-template-columns: 1fr 340px;
       gap: 18px;
       flex: 1;
+      transition: all 0.3s ease;
     }
     @media (max-width: 1080px) {
       .main-grid { grid-template-columns: 1fr; }
+    }
+    .main-grid.full-arena-mode {
+      grid-template-columns: 1fr !important;
+    }
+    .main-grid.full-arena-mode .sidebar {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 14px;
+      margin-top: 10px;
     }
     .viewport-card {
       background: var(--card);
@@ -558,11 +568,18 @@ HTML_TEMPLATE = """
     .view-stage {
       position: relative;
       width: 100%;
-      height: 520px;
+      height: 680px;
+      min-height: 620px;
       background: #030508;
-      border-radius: 10px;
+      border-radius: 12px;
       overflow: hidden;
-      border: 1px solid rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.8), 0 0 1px rgba(255, 255, 255, 0.2);
+      transition: height 0.3s ease;
+    }
+    .view-stage.full-arena {
+      height: 82vh;
+      min-height: 750px;
     }
     #three-canvas-container {
       width: 100%;
@@ -703,13 +720,15 @@ HTML_TEMPLATE = """
       </div>
 
       <!-- 3D Camera Angles Preset -->
-      <div id="cam-presets-bar" style="display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 8px; border: 1px solid var(--border);">
+      <div id="cam-presets-bar" style="display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 8px; border: 1px solid var(--border); flex-wrap: wrap;">
         <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: 700;">🎥 CAM:</span>
-        <button class="cam-btn" onclick="setCameraPreset('action')">Action / Follow</button>
-        <button class="cam-btn active" onclick="setCameraPreset('broadcast')">TV Sideline</button>
-        <button class="cam-btn" onclick="setCameraPreset('tactical')">Tactical 3D</button>
-        <button class="cam-btn" onclick="setCameraPreset('goal')">Behind Goal</button>
-        <button class="cam-btn" onclick="setCameraPreset('top')">Top-Down</button>
+        <button class="cam-btn active" onclick="setCameraPreset('broadcast')">🎮 FIFA Tele</button>
+        <button class="cam-btn" onclick="setCameraPreset('pro')">👤 Single Player (Be-A-Pro)</button>
+        <button class="cam-btn" onclick="setCameraPreset('duel')">⚔️ 2-Player Duel (1v1)</button>
+        <button class="cam-btn" onclick="setCameraPreset('action')">⚽ Dynamic Follow</button>
+        <button class="cam-btn" onclick="setCameraPreset('goal')">🥅 Behind Goal</button>
+        <button class="cam-btn" onclick="setCameraPreset('dugout')">🏟️ Pitch Dugout</button>
+        <button class="cam-btn" id="btn-toggle-fullscreen" onclick="toggleArenaMode()" style="background: rgba(16, 185, 129, 0.18); color: #10b981; border-color: rgba(16, 185, 129, 0.4); font-weight: 700;">⛶ Full Arena</button>
       </div>
 
       <div class="badge">● 90' BROADCAST SYNC</div>
@@ -909,8 +928,8 @@ HTML_TEMPLATE = """
         const initW = (stageEl ? stageEl.clientWidth : 0) || container.clientWidth || 1050;
         const initH = (stageEl ? stageEl.clientHeight : 0) || container.clientHeight || 520;
         const aspect = initW / initH;
-        camera = new THREE.PerspectiveCamera(38, aspect, 0.1, 1000);
-        camera.position.set(52.5, -42, 28);
+        camera = new THREE.PerspectiveCamera(45, aspect, 0.1, 1000);
+        camera.position.set(52.5, -34, 42);
         camera.up.set(0, 0, 1);
 
         let createdRenderer = null;
@@ -934,10 +953,19 @@ HTML_TEMPLATE = """
 
         if (THREE.OrbitControls) {
           controls = new THREE.OrbitControls(camera, renderer.domElement);
-          controls.target.set(52.5, 34, 1.0);
+          controls.target.set(52.5, 34, 1.2);
           controls.enableDamping = true;
           controls.dampingFactor = 0.05;
-          controls.maxPolarAngle = Math.PI / 2.05;
+          controls.enableZoom = true;
+          controls.zoomSpeed = 1.3;
+          controls.minDistance = 3.5;
+          controls.maxDistance = 240;
+          controls.enableRotate = true;
+          controls.rotateSpeed = 0.9;
+          controls.enablePan = true;
+          controls.panSpeed = 0.8;
+          controls.maxPolarAngle = Math.PI / 2.01; // Allow horizontal turf level view
+          controls.minPolarAngle = 0.05;
         }
 
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.45);
@@ -1136,14 +1164,14 @@ HTML_TEMPLATE = """
 
     if (threeInitialized) {
       ballMesh = new THREE.Mesh(
-        new THREE.SphereGeometry(0.55, 16, 16),
+        new THREE.SphereGeometry(0.32, 16, 16),
         new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3, metalness: 0.1 })
       );
       ballMesh.castShadow = true;
       scene.add(ballMesh);
 
       ballShadow = new THREE.Mesh(
-        new THREE.CircleGeometry(0.55, 16),
+        new THREE.CircleGeometry(0.32, 16),
         new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.55 })
       );
       ballShadow.position.set(0, 0, 0.03);
@@ -1206,8 +1234,8 @@ HTML_TEMPLATE = """
       const tex = new THREE.CanvasTexture(cvs);
       const spriteMat = new THREE.SpriteMaterial({ map: tex, transparent: true });
       const sprite = new THREE.Sprite(spriteMat);
-      sprite.scale.set(4.5, 1.15, 1);
-      sprite.position.z = 2.45;
+      sprite.scale.set(2.2, 0.55, 1);
+      sprite.position.z = 2.30;
       return sprite;
     }
 
@@ -1238,11 +1266,15 @@ HTML_TEMPLATE = """
       const sockMat = new THREE.MeshStandardMaterial({ color: sockColor, roughness: 0.5 });
       const bootMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.3 });
 
-      // 1. Torso / Jersey (Front & Back with Squad Number Texture)
+      // 1. Torso / Jersey (Front & Back with Squad Number Texture on +Y and -Y faces)
+      const numTex = createPlayerNumberTexture(num, team);
       const torsoMat = [
-        kitMat, kitMat, kitMat, kitMat,
-        new THREE.MeshStandardMaterial({ map: createPlayerNumberTexture(num, team), roughness: 0.5 }),
-        new THREE.MeshStandardMaterial({ map: createPlayerNumberTexture(num, team), roughness: 0.5 })
+        kitMat, // +X Right
+        kitMat, // -X Left
+        new THREE.MeshStandardMaterial({ map: numTex, roughness: 0.5 }), // +Y Front Chest
+        new THREE.MeshStandardMaterial({ map: numTex, roughness: 0.5 }), // -Y Back Squad Number
+        kitMat,   // +Z Neck
+        shortMat  // -Z Waist
       ];
       const torso = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.32, 0.72), torsoMat);
       torso.position.z = 1.25;
@@ -1323,9 +1355,10 @@ HTML_TEMPLATE = """
       // 6. 3D Floating Name Pill Sprite above Player Head
       const nameSprite = createPlayerNameSprite(name, num);
       pGroup.add(nameSprite);
+      pGroup.userData.nameSprite = nameSprite;
 
       // Caricature Scaling for broadcast & tactical visibility (FIFA / FM Style)
-      pGroup.scale.set(1.4, 1.4, 1.4);
+      pGroup.scale.set(1.25, 1.25, 1.25);
 
       scene.add(pGroup);
       playerMeshes[id] = pGroup;
@@ -2283,13 +2316,49 @@ HTML_TEMPLATE = """
       const f = matchData[frameIdx - 1];
       if (!f) return;
 
-      // Dynamic Smooth Follow Camera in 'action' mode
+      // Dynamic Smooth Camera Tracking for active preset modes
       if (currentCamPreset === 'action') {
-        camTargetX += (f.ball.x - camTargetX) * 0.20;
-        camTargetY += (f.ball.y - camTargetY) * 0.20;
+        camTargetX += (f.ball.x - camTargetX) * 0.18;
         if (threeInitialized && camera && controls) {
-          camera.position.set(f.ball.x, f.ball.y - 36, 22);
-          controls.target.set(f.ball.x, f.ball.y, 0);
+          camera.position.x += (f.ball.x - camera.position.x) * 0.18;
+          controls.target.x = camera.position.x;
+        }
+      } else if (currentCamPreset === 'pro') {
+        const p = getActiveBallPlayer(f);
+        if (p) {
+          const spd = Math.hypot(p.vx || 0, p.vy || 0);
+          const fac = (spd > 0.3) ? Math.atan2(p.vy, p.vx) : (p.team === 'Home' ? 0 : Math.PI);
+          const fc = Math.cos(fac), fs = Math.sin(fac);
+          camTargetX += (p.x + fc * 10 - camTargetX) * 0.22;
+          camTargetY += (p.y + fs * 10 - camTargetY) * 0.22;
+          camYaw = fac - Math.PI / 2;
+          if (threeInitialized && camera && controls) {
+            const tx = p.x - fc * 7.5, ty = p.y - fs * 7.5;
+            camera.position.x += (tx - camera.position.x) * 0.22;
+            camera.position.y += (ty - camera.position.y) * 0.22;
+            camera.position.z = Math.max(2.0, (p.z || 0) + 2.8);
+            controls.target.x += (p.x + fc * 10 - controls.target.x) * 0.22;
+            controls.target.y += (p.y + fs * 10 - controls.target.y) * 0.22;
+          }
+        }
+      } else if (currentCamPreset === 'duel') {
+        const { p1, p2 } = getDuelPlayers(f);
+        if (p1 && p2) {
+          const mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
+          camTargetX += (mx - camTargetX) * 0.20;
+          camTargetY += (my - camTargetY) * 0.20;
+          if (threeInitialized && camera && controls) {
+            camera.position.x += (mx - camera.position.x) * 0.20;
+            camera.position.y += ((my - 11) - camera.position.y) * 0.20;
+            controls.target.x += (mx - controls.target.x) * 0.20;
+            controls.target.y += (my - controls.target.y) * 0.20;
+          }
+        }
+      } else if (currentCamPreset === 'dugout') {
+        camTargetX += (f.ball.x - camTargetX) * 0.18;
+        if (threeInitialized && camera && controls) {
+          camera.position.x += (f.ball.x - camera.position.x) * 0.18;
+          controls.target.x = camera.position.x;
         }
       }
 
@@ -2321,6 +2390,12 @@ HTML_TEMPLATE = """
               mesh.userData.leftLeg.rotation.x = legSwing;
               mesh.userData.rightLeg.rotation.x = -legSwing;
             }
+
+            // In Be-A-Pro mode, hide floating tag of active player directly ahead of camera
+            if (mesh.userData && mesh.userData.nameSprite) {
+              const activeP = (currentCamPreset === 'pro') ? getActiveBallPlayer(f) : null;
+              mesh.userData.nameSprite.visible = !(activeP && (activeP.id === p.id || activeP.name === p.name));
+            }
           }
         });
 
@@ -2329,6 +2404,69 @@ HTML_TEMPLATE = """
           ballMesh.position.copy(ballPos);
           ballShadow.position.set(f.ball.x, f.ball.y, 0.03);
           ballShadow.scale.setScalar(Math.max(0.4, 1.0 - (bz * 0.08)));
+        }
+
+        // Dynamic 3D Camera Tracking for Active Presets
+        if (camera && controls) {
+          if (currentCamPreset === 'pro') {
+            const p = getActiveBallPlayer(f) || { x: f.ball.x, y: f.ball.y, vx: 1, vy: 0, team: 'Home' };
+            const spd = Math.hypot(p.vx || 0, p.vy || 0);
+            const fac = (spd > 0.3) ? Math.atan2(p.vy, p.vx) : (p.team === 'Home' ? 0 : Math.PI);
+            const fc = Math.cos(fac), fs = Math.sin(fac);
+            const camX = p.x - fc * 8.5;
+            const camY = p.y - fs * 8.5;
+            const camZ = 3.6;
+            const tgtX = p.x + fc * 12.0;
+            const tgtY = p.y + fs * 12.0;
+            const tgtZ = 1.3;
+            if (isPlaying) {
+              camera.position.lerp(new THREE.Vector3(camX, camY, camZ), 0.2);
+              controls.target.lerp(new THREE.Vector3(tgtX, tgtY, tgtZ), 0.2);
+            } else {
+              camera.position.set(camX, camY, camZ);
+              controls.target.set(tgtX, tgtY, tgtZ);
+            }
+            controls.update();
+          } else if (currentCamPreset === 'duel') {
+            const { p1, p2 } = getDuelPlayers(f);
+            const mx = (p1 && p2) ? (p1.x + p2.x) / 2 : f.ball.x;
+            const my = (p1 && p2) ? (p1.y + p2.y) / 2 : f.ball.y;
+            let duelAngle = 0;
+            if (p1 && p2) {
+              duelAngle = Math.atan2(p2.y - p1.y, p2.x - p1.x) - Math.PI / 2;
+            }
+            const camX = mx + Math.cos(duelAngle) * 10.5;
+            const camY = my + Math.sin(duelAngle) * 10.5;
+            const camZ = 3.8;
+            if (isPlaying) {
+              camera.position.lerp(new THREE.Vector3(camX, camY, camZ), 0.2);
+              controls.target.lerp(new THREE.Vector3(mx, my, 1.2), 0.2);
+            } else {
+              camera.position.set(camX, camY, camZ);
+              controls.target.set(mx, my, 1.2);
+            }
+            controls.update();
+          } else if (currentCamPreset === 'action') {
+            const camX = f.ball.x;
+            if (isPlaying) {
+              camera.position.x += (camX - camera.position.x) * 0.15;
+              controls.target.x += (camX - controls.target.x) * 0.15;
+            } else {
+              camera.position.set(camX, -30, 36);
+              controls.target.set(camX, 34, 0.5);
+            }
+            controls.update();
+          } else if (currentCamPreset === 'dugout') {
+            const camX = f.ball.x;
+            if (isPlaying) {
+              camera.position.x += (camX - camera.position.x) * 0.15;
+              controls.target.x += (camX - controls.target.x) * 0.15;
+            } else {
+              camera.position.set(camX, -2.5, 1.8);
+              controls.target.set(camX, 34, 1.0);
+            }
+            controls.update();
+          }
         }
       }
 
@@ -2558,6 +2696,60 @@ HTML_TEMPLATE = """
       render(currentFrame);
     }
 
+    // Player and Tactical Target Resolvers for Dynamic Video Game Cameras
+    function getActiveBallPlayer(f) {
+      if (!f || !f.players || f.players.length === 0) return null;
+      const poss = f.possession;
+      if (poss && poss.possessing_player) {
+        const p = f.players.find(x => x.name === poss.possessing_player || x.id === poss.possessing_player);
+        if (p) return p;
+      }
+      let bestP = f.players[0], minDist = 999;
+      f.players.forEach(p => {
+        const d = Math.hypot(p.x - f.ball.x, p.y - f.ball.y);
+        if (d < minDist) { minDist = d; bestP = p; }
+      });
+      return bestP;
+    }
+
+    function getDuelPlayers(f) {
+      const p1 = getActiveBallPlayer(f);
+      if (!p1 || !f.players) return { p1: null, p2: null };
+      let p2 = null, minDist = 999;
+      f.players.forEach(other => {
+        if (other.team !== p1.team) {
+          const d = Math.hypot(other.x - p1.x, other.y - p1.y);
+          if (d < minDist) { minDist = d; p2 = other; }
+        }
+      });
+      return { p1, p2: p2 || p1 };
+    }
+
+    let isFullArena = false;
+    function toggleArenaMode() {
+      isFullArena = !isFullArena;
+      const stage = document.querySelector('.view-stage');
+      const grid = document.querySelector('.main-grid');
+      const btn = document.getElementById('btn-toggle-fullscreen');
+      if (stage && grid) {
+        stage.classList.toggle('full-arena', isFullArena);
+        grid.classList.toggle('full-arena-mode', isFullArena);
+        if (btn) {
+          btn.textContent = isFullArena ? '⛶ Normal Stage' : '⛶ Full Arena';
+        }
+        setTimeout(() => {
+          if (threeInitialized && camera && renderer) {
+            camera.aspect = stage.clientWidth / stage.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(stage.clientWidth, stage.clientHeight);
+            renderer.render(scene, camera);
+          }
+          resizeCanvas();
+          render(currentFrame);
+        }, 60);
+      }
+    }
+
     // 3D Camera Angles Preset Controller
     function setCameraPreset(mode) {
       currentCamPreset = mode;
@@ -2582,68 +2774,109 @@ HTML_TEMPLATE = """
       const bx = f ? f.ball.x : 52.5;
       const by = f ? f.ball.y : 34.0;
 
-      if (mode === 'action') {
-        camYaw = 0.0;
-        camPitch = 0.38;
-        camDist = 62.0;
-        camTargetX = bx;
-        camTargetY = by;
-        camFovMult = 1.7;
+      if (mode === 'broadcast') {
+        // FIFA Tele Broadcast (Sideline gantry angle, natural pitch elevation)
+        camYaw = 0.02;
+        camPitch = 0.55;
+        camDist = 88.0;
+        camTargetX = 52.5;
+        camTargetY = 34.0;
+        camFovMult = 1.35;
         camOffsetY = 0.05;
         if (threeInitialized && camera && controls) {
-          camera.position.set(bx, by - 36, 22);
-          controls.target.set(bx, by, 0);
-          controls.update();
-        }
-      } else if (mode === 'broadcast') {
-        camYaw = 0.03;
-        camPitch = 0.38;
-        camDist = 86.0;
-        camTargetX = 52.5;
-        camTargetY = 34.0;
-        camFovMult = 1.6;
-        camOffsetY = 0.08;
-        if (threeInitialized && camera && controls) {
-          camera.position.set(52.5, -45, 34);
+          camera.position.set(52.5, -34, 42);
           controls.target.set(52.5, 34, 0);
           controls.update();
         }
-      } else if (mode === 'tactical') {
-        camYaw = 0.0;
-        camPitch = 0.58;
-        camDist = 98.0;
-        camTargetX = 52.5;
+      } else if (mode === 'pro') {
+        // Single Player (Be-A-Pro / 3rd Person over-the-shoulder tracking)
+        const p = getActiveBallPlayer(f) || { x: bx, y: by, vx: 1, vy: 0, team: 'Home' };
+        const spd = Math.hypot(p.vx || 0, p.vy || 0);
+        const fac = (spd > 0.3) ? Math.atan2(p.vy, p.vx) : (p.team === 'Home' ? 0 : Math.PI);
+        const fc = Math.cos(fac), fs = Math.sin(fac);
+        camTargetX = p.x + fc * 10;
+        camTargetY = p.y + fs * 10;
+        camYaw = fac - Math.PI / 2;
+        camPitch = 0.22;
+        camDist = 9.0;
+        camFovMult = 1.9;
+        camOffsetY = 0.04;
+        if (threeInitialized && camera && controls) {
+          camera.position.set(p.x - fc * 8.5, p.y - fs * 8.5, 3.6);
+          controls.target.set(p.x + fc * 12, p.y + fs * 12, 1.3);
+          controls.update();
+        }
+      } else if (mode === 'duel') {
+        // 2-Player Duel (1v1 Clash tight cinematic framing)
+        const { p1, p2 } = getDuelPlayers(f);
+        const mx = (p1 && p2) ? (p1.x + p2.x) / 2 : bx;
+        const my = (p1 && p2) ? (p1.y + p2.y) / 2 : by;
+        let duelAngle = 0;
+        if (p1 && p2) {
+          duelAngle = Math.atan2(p2.y - p1.y, p2.x - p1.x) - Math.PI / 2;
+        }
+        camTargetX = mx;
+        camTargetY = my;
+        camPitch = 0.24;
+        camDist = 15.0;
+        camFovMult = 1.9;
+        camOffsetY = 0.04;
+        if (threeInitialized && camera && controls) {
+          camera.position.set(mx + Math.cos(duelAngle) * 10.5, my + Math.sin(duelAngle) * 10.5, 3.8);
+          controls.target.set(mx, my, 1.2);
+          controls.update();
+        }
+      } else if (mode === 'action') {
+        // Dynamic Follow Ball (Sideline gliding with possession)
+        camYaw = 0.02;
+        camPitch = 0.45;
+        camDist = 65.0;
+        camTargetX = bx;
         camTargetY = 34.0;
         camFovMult = 1.5;
-        camOffsetY = 0.12;
+        camOffsetY = 0.05;
         if (threeInitialized && camera && controls) {
-          camera.position.set(52.5, -55, 60);
-          controls.target.set(52.5, 34, 0);
+          camera.position.set(bx, -30, 36);
+          controls.target.set(bx, 34, 0.5);
           controls.update();
         }
       } else if (mode === 'goal') {
+        // Behind Goal (Endzone view looking forward through posts)
         camYaw = -Math.PI / 2;
-        camPitch = 0.28;
-        camDist = 68.0;
+        camPitch = 0.22;
+        camDist = 55.0;
         camTargetX = 52.5;
         camTargetY = 34.0;
         camFovMult = 1.8;
         camOffsetY = 0.02;
         if (threeInitialized && camera && controls) {
-          camera.position.set(-18, 34, 18);
-          controls.target.set(52.5, 34, 0);
+          camera.position.set(-12, 34, 7.5);
+          controls.target.set(52.5, 34, 1.2);
+          controls.update();
+        }
+      } else if (mode === 'dugout') {
+        // Sideline Pitch-Level Dugout (Manager eye level)
+        camPitch = 0.12;
+        camDist = 38.0;
+        camTargetX = bx;
+        camTargetY = 34.0;
+        camFovMult = 1.8;
+        camOffsetY = 0.02;
+        if (threeInitialized && camera && controls) {
+          camera.position.set(bx, -2.5, 1.8);
+          controls.target.set(bx, 34, 1.0);
           controls.update();
         }
       } else if (mode === 'top') {
         camYaw = 0.0;
         camPitch = 1.48;
-        camDist = 105.0;
+        camDist = 95.0;
         camTargetX = 52.5;
         camTargetY = 34.0;
         camFovMult = 1.4;
         camOffsetY = 0.0;
         if (threeInitialized && camera && controls) {
-          camera.position.set(52.5, 34, 98);
+          camera.position.set(52.5, 34, 95);
           controls.target.set(52.5, 34, 0);
           controls.update();
         }
