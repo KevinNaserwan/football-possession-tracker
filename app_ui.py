@@ -637,6 +637,27 @@ HTML_TEMPLATE = """
       background: rgba(255, 255, 255, 0.03);
       border-radius: 8px;
     }
+    .cam-btn {
+      background: rgba(255, 255, 255, 0.08);
+      color: #e2e8f0;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 5px;
+      padding: 3px 8px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .cam-btn:hover {
+      background: var(--accent);
+      color: #000000;
+      border-color: var(--accent);
+    }
+    .cam-btn.active {
+      background: var(--accent);
+      color: #000000;
+      font-weight: 700;
+    }
   </style>
 </head>
 <body>
@@ -657,6 +678,16 @@ HTML_TEMPLATE = """
         <button id="btn-view-3d" class="view-btn active" onclick="switchView('3d')">3D Stadium</button>
         <button id="btn-view-2d" class="view-btn" onclick="switchView('2d')">2D Planar</button>
       </div>
+
+      <!-- 3D Camera Angles Preset -->
+      <div id="cam-presets-bar" style="display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 8px; border: 1px solid var(--border);">
+        <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: 700;">🎥 CAM:</span>
+        <button class="cam-btn" onclick="setCameraPreset('tactical')">Tactical</button>
+        <button class="cam-btn" onclick="setCameraPreset('broadcast')">TV Sideline</button>
+        <button class="cam-btn" onclick="setCameraPreset('goal')">Behind Goal</button>
+        <button class="cam-btn" onclick="setCameraPreset('top')">Top-Down</button>
+      </div>
+
       <div class="badge">● 90' BROADCAST SYNC</div>
     </div>
   </div>
@@ -898,22 +929,88 @@ HTML_TEMPLATE = """
         dirLight2.position.set(52.5, 110, 80);
         scene.add(dirLight2);
 
+        // Procedural Alternating FIFA Mowing Grass Texture
+        function createGrassCanvasTexture() {
+          const cvs = document.createElement('canvas');
+          cvs.width = 1024;
+          cvs.height = 512;
+          const ctx = cvs.getContext('2d');
+          const stripes = 10;
+          const sw = cvs.width / stripes;
+          for (let i = 0; i < stripes; i++) {
+            ctx.fillStyle = (i % 2 === 0) ? '#15803d' : '#166534';
+            ctx.fillRect(i * sw, 0, sw, cvs.height);
+          }
+          const tex = new THREE.CanvasTexture(cvs);
+          tex.wrapS = THREE.ClampToEdgeWrapping;
+          tex.wrapT = THREE.ClampToEdgeWrapping;
+          return tex;
+        }
+
+        const grassTex = createGrassCanvasTexture();
         const pitchGeometry = new THREE.PlaneGeometry(105, 68);
         const pitchMaterial = new THREE.MeshStandardMaterial({
-          color: 0x1b4d2e,
-          roughness: 0.6,
+          map: grassTex,
+          roughness: 0.55,
           metalness: 0.05,
           side: THREE.DoubleSide
         });
         pitchMesh = new THREE.Mesh(pitchGeometry, pitchMaterial);
         pitchMesh.position.set(52.5, 34, 0);
+        pitchMesh.receiveShadow = true;
         scene.add(pitchMesh);
 
+        // Technical Run-off Apron
         const outerGeo = new THREE.PlaneGeometry(125, 84);
-        const outerMat = new THREE.MeshStandardMaterial({ color: 0x0f2918, roughness: 0.9, side: THREE.DoubleSide });
+        const outerMat = new THREE.MeshStandardMaterial({ color: 0x0a1e12, roughness: 0.85, side: THREE.DoubleSide });
         const outerMesh = new THREE.Mesh(outerGeo, outerMat);
         outerMesh.position.set(52.5, 34, -0.05);
+        outerMesh.receiveShadow = true;
         scene.add(outerMesh);
+
+        // 3D Stadium Grandstands (Tribunes / Spectator Terraces with Ambient Crowd Glow)
+        function createGrandstand(x, y, w, d, h, rotZ, color) {
+          const standGeo = new THREE.BoxGeometry(w, d, h);
+          const standMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.85 });
+          const stand = new THREE.Mesh(standGeo, standMat);
+          stand.position.set(x, y, h / 2 - 0.1);
+          stand.rotation.z = rotZ;
+          stand.receiveShadow = true;
+          scene.add(stand);
+        }
+        // North, South, East, West Stands
+        createGrandstand(52.5, -18, 128, 16, 7.5, 0, 0x1e293b); // South Stand
+        createGrandstand(52.5, 86, 128, 16, 7.5, 0, 0x1e293b);  // North Stand
+        createGrandstand(-18, 34, 16, 88, 7.5, 0, 0x0f172a);   // West Stand (Home End)
+        createGrandstand(123, 34, 16, 88, 7.5, 0, 0x0f172a);   // East Stand (Away End)
+
+        // 4 Stadium Floodlight Pylons
+        function createFloodlightPylon(x, y) {
+          const pylonPole = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.5, 0.7, 28, 8),
+            new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.8, roughness: 0.2 })
+          );
+          pylonPole.position.set(x, y, 14);
+          pylonPole.rotation.x = Math.PI / 2;
+          scene.add(pylonPole);
+
+          const lightBank = new THREE.Mesh(
+            new THREE.BoxGeometry(4.5, 2.5, 1.0),
+            new THREE.MeshBasicMaterial({ color: 0xf8fafc })
+          );
+          lightBank.position.set(x, y, 28);
+          scene.add(lightBank);
+
+          const spot = new THREE.SpotLight(0xffffff, 0.7, 180, Math.PI / 4, 0.4);
+          spot.position.set(x, y, 28);
+          spot.target.position.set(52.5, 34, 0);
+          scene.add(spot);
+          scene.add(spot.target);
+        }
+        createFloodlightPylon(-14, -14);
+        createFloodlightPylon(119, -14);
+        createFloodlightPylon(-14, 82);
+        createFloodlightPylon(119, 82);
 
         return true;
       } catch (err) {
@@ -925,29 +1022,44 @@ HTML_TEMPLATE = """
     threeInitialized = initThreeEngine();
     console.log("Three.js 3D Stadium initialized:", threeInitialized);
 
-    // 3D Pitch Lines Wireframe
+    // 3D Pitch Lines Wireframe & Regulation Markings
     function create3DPitchLines() {
       if (!threeInitialized) return;
       const lineMat = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 2 });
       
       const points = [
-        new THREE.Vector3(0, 0, 0.02),
-        new THREE.Vector3(105, 0, 0.02),
-        new THREE.Vector3(105, 68, 0.02),
-        new THREE.Vector3(0, 68, 0.02),
-        new THREE.Vector3(0, 0, 0.02)
+        new THREE.Vector3(0, 0, 0.03),
+        new THREE.Vector3(105, 0, 0.03),
+        new THREE.Vector3(105, 68, 0.03),
+        new THREE.Vector3(0, 68, 0.03),
+        new THREE.Vector3(0, 0, 0.03)
       ];
       scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), lineMat));
 
-      const halfPts = [new THREE.Vector3(52.5, 0, 0.02), new THREE.Vector3(52.5, 68, 0.02)];
+      const halfPts = [new THREE.Vector3(52.5, 0, 0.03), new THREE.Vector3(52.5, 68, 0.03)];
       scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(halfPts), lineMat));
 
       const circlePts = [];
       for (let i = 0; i <= 64; i++) {
         const theta = (i / 64) * Math.PI * 2;
-        circlePts.push(new THREE.Vector3(52.5 + Math.cos(theta) * 9.15, 34 + Math.sin(theta) * 9.15, 0.02));
+        circlePts.push(new THREE.Vector3(52.5 + Math.cos(theta) * 9.15, 34 + Math.sin(theta) * 9.15, 0.03));
       }
       scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(circlePts), lineMat));
+
+      // 18-Yard Penalty Boxes & 6-Yard Goal Areas in 3D
+      function addBoxLines(minX, maxX, minY, maxY) {
+        const boxPts = [
+          new THREE.Vector3(minX, minY, 0.03),
+          new THREE.Vector3(maxX, minY, 0.03),
+          new THREE.Vector3(maxX, maxY, 0.03),
+          new THREE.Vector3(minX, maxY, 0.03)
+        ];
+        scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(boxPts), lineMat));
+      }
+      addBoxLines(0, 16.5, 13.84, 54.16);
+      addBoxLines(0, 5.5, 24.84, 43.16);
+      addBoxLines(105, 105 - 16.5, 13.84, 54.16);
+      addBoxLines(105, 105 - 5.5, 24.84, 43.16);
 
       function addGoal(x, yMin, yMax, dir) {
         const postMat = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 3 });
@@ -1008,28 +1120,158 @@ HTML_TEMPLATE = """
       animateThree();
     }
 
-    function getOrCreatePlayerMesh(id, team) {
+    // High-Fidelity Humanoid Footballer Generator (Authentic FIFA Video Game Style)
+    function createPlayerNumberTexture(num, team) {
+      const cvs = document.createElement('canvas');
+      cvs.width = 128;
+      cvs.height = 128;
+      const ctx = cvs.getContext('2d');
+      ctx.fillStyle = team === 'Home' ? '#ef4444' : '#eab308';
+      ctx.fillRect(0, 0, 128, 128);
+      ctx.fillStyle = team === 'Home' ? '#ffffff' : '#0f172a';
+      ctx.font = 'bold 74px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(num || '', 64, 64);
+      return new THREE.CanvasTexture(cvs);
+    }
+
+    function createPlayerNameSprite(name, num) {
+      const cvs = document.createElement('canvas');
+      cvs.width = 256;
+      cvs.height = 64;
+      const ctx = cvs.getContext('2d');
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+      ctx.roundRect ? ctx.roundRect(8, 8, 240, 48, 8) : ctx.fillRect(8, 8, 240, 48);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 26px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`#${num || ''} ${name || ''}`, 128, 32);
+      const tex = new THREE.CanvasTexture(cvs);
+      const spriteMat = new THREE.SpriteMaterial({ map: tex, transparent: true });
+      const sprite = new THREE.Sprite(spriteMat);
+      sprite.scale.set(4.5, 1.15, 1);
+      sprite.position.z = 2.45;
+      return sprite;
+    }
+
+    function getOrCreatePlayerMesh(id, team, pData) {
       if (!threeInitialized) return null;
       if (playerMeshes[id]) return playerMeshes[id];
 
       const pGroup = new THREE.Group();
-      const color = team === 'Home' ? 0xef4444 : 0xeab308;
-      
-      const body = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.42, 0.42, 1.7, 16),
-        new THREE.MeshStandardMaterial({ color: color, roughness: 0.5 })
-      );
-      body.rotation.x = Math.PI / 2;
-      body.position.z = 0.85;
-      body.castShadow = true;
-      pGroup.add(body);
+      const isHome = (team === 'Home');
+      const isGK = (id === 'H1' || id === 'A1' || (pData && pData.role === 'GK'));
+      const num = pData?.num !== undefined ? pData.num : id.replace(/[^\d]/g, '');
+      const name = pData?.name || id;
 
-      const head = new THREE.Mesh(
-        new THREE.SphereGeometry(0.3, 16, 16),
-        new THREE.MeshStandardMaterial({ color: 0xffedd5, roughness: 0.6 })
-      );
-      head.position.z = 1.95;
+      // Kit Colors
+      let kitColor = isHome ? 0xef4444 : 0xeab308;
+      let shortColor = isHome ? 0x2563eb : 0x0f172a;
+      let sockColor = isHome ? 0xef4444 : 0xeab308;
+      if (isGK) {
+        kitColor = isHome ? 0x10b981 : 0xf97316; // Neon green or bright orange for GK
+        shortColor = 0x064e3b;
+        sockColor = kitColor;
+      }
+
+      const skinMat = new THREE.MeshStandardMaterial({ color: 0xffd1b3, roughness: 0.65 });
+      const hairMat = new THREE.MeshStandardMaterial({ color: 0x26190e, roughness: 0.8 });
+      const kitMat = new THREE.MeshStandardMaterial({ color: kitColor, roughness: 0.5 });
+      const shortMat = new THREE.MeshStandardMaterial({ color: shortColor, roughness: 0.5 });
+      const sockMat = new THREE.MeshStandardMaterial({ color: sockColor, roughness: 0.5 });
+      const bootMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.3 });
+
+      // 1. Torso / Jersey (Front & Back with Squad Number Texture)
+      const torsoMat = [
+        kitMat, kitMat, kitMat, kitMat,
+        new THREE.MeshStandardMaterial({ map: createPlayerNumberTexture(num, team), roughness: 0.5 }),
+        new THREE.MeshStandardMaterial({ map: createPlayerNumberTexture(num, team), roughness: 0.5 })
+      ];
+      const torso = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.32, 0.72), torsoMat);
+      torso.position.z = 1.25;
+      torso.castShadow = true;
+      pGroup.add(torso);
+
+      // 2. Head & Hair
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.20, 16, 16), skinMat);
+      head.position.z = 1.76;
+      head.castShadow = true;
       pGroup.add(head);
+
+      const hair = new THREE.Mesh(new THREE.SphereGeometry(0.21, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2), hairMat);
+      hair.position.z = 1.79;
+      pGroup.add(hair);
+
+      // 3. Arms & Shoulders (Left & Right)
+      [-0.34, 0.34].forEach(xOff => {
+        // Shoulder / Upper sleeve
+        const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.10, 0.28, 8), kitMat);
+        sleeve.position.set(xOff, 0, 1.40);
+        sleeve.rotation.x = Math.PI / 2;
+        pGroup.add(sleeve);
+        // Forearm skin
+        const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.32, 8), skinMat);
+        arm.position.set(xOff, 0.05, 1.15);
+        arm.rotation.x = Math.PI / 2;
+        pGroup.add(arm);
+      });
+
+      // 4. Shorts / Pelvis
+      const shorts = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.30, 0.32), shortMat);
+      shorts.position.z = 0.80;
+      shorts.castShadow = true;
+      pGroup.add(shorts);
+
+      // 5. Legs, Socks & Boots as Articulated Pivot Groups (Left & Right)
+      const leftLeg = new THREE.Group();
+      leftLeg.position.set(-0.15, 0, 0.75); // Hip pivot
+
+      const leftThigh = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.10, 0.35, 8), skinMat);
+      leftThigh.position.set(0, 0, -0.17);
+      leftThigh.rotation.x = Math.PI / 2;
+      leftLeg.add(leftThigh);
+
+      const leftCalf = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.09, 0.38, 8), sockMat);
+      leftCalf.position.set(0, 0, -0.50);
+      leftCalf.rotation.x = Math.PI / 2;
+      leftLeg.add(leftCalf);
+
+      const leftBoot = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.26, 0.10), bootMat);
+      leftBoot.position.set(0, 0.06, -0.70);
+      leftLeg.add(leftBoot);
+
+      pGroup.add(leftLeg);
+
+      const rightLeg = new THREE.Group();
+      rightLeg.position.set(0.15, 0, 0.75); // Hip pivot
+
+      const rightThigh = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.10, 0.35, 8), skinMat);
+      rightThigh.position.set(0, 0, -0.17);
+      rightThigh.rotation.x = Math.PI / 2;
+      rightLeg.add(rightThigh);
+
+      const rightCalf = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.09, 0.38, 8), sockMat);
+      rightCalf.position.set(0, 0, -0.50);
+      rightCalf.rotation.x = Math.PI / 2;
+      rightLeg.add(rightCalf);
+
+      const rightBoot = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.26, 0.10), bootMat);
+      rightBoot.position.set(0, 0.06, -0.70);
+      rightLeg.add(rightBoot);
+
+      pGroup.add(rightLeg);
+
+      pGroup.userData = { leftLeg, rightLeg };
+
+      // 6. 3D Floating Name Pill Sprite above Player Head
+      const nameSprite = createPlayerNameSprite(name, num);
+      pGroup.add(nameSprite);
 
       scene.add(pGroup);
       playerMeshes[id] = pGroup;
@@ -1673,16 +1915,40 @@ HTML_TEMPLATE = """
       const f = matchData[frameIdx - 1];
       if (!f) return;
 
-      // Update 3D Positions if Three.js WebGL is running
+      // Update 3D Positions & Biomechanical Poses if Three.js WebGL is running
       if (threeInitialized) {
+        const ballPos = new THREE.Vector3(f.ball.x, f.ball.y, Math.max(0.28, f.ball.z || 0));
+
         f.players.forEach(p => {
-          const mesh = getOrCreatePlayerMesh(p.id, p.team);
-          if (mesh) mesh.position.set(p.x, p.y, p.z || 0);
+          const mesh = getOrCreatePlayerMesh(p.id, p.team, p);
+          if (mesh) {
+            mesh.position.set(p.x, p.y, p.z || 0);
+
+            // Orient Player Body toward ball or movement direction (Realistic Look)
+            const vx = p.vx || 0;
+            const vy = p.vy || 0;
+            const speed = Math.sqrt(vx * vx + vy * vy);
+
+            let targetYaw = 0;
+            if (speed > 0.4) {
+              targetYaw = Math.atan2(vy, vx);
+            } else {
+              targetYaw = Math.atan2(f.ball.y - p.y, f.ball.x - p.x);
+            }
+            mesh.rotation.z = targetYaw - Math.PI / 2;
+
+            // Running Leg Stride Biomechanics Animation
+            const legSwing = (speed > 0.3) ? Math.sin(frameIdx * 0.45 + (p.num || 1)) * 0.55 : 0;
+            if (mesh.userData && mesh.userData.leftLeg && mesh.userData.rightLeg) {
+              mesh.userData.leftLeg.rotation.x = legSwing;
+              mesh.userData.rightLeg.rotation.x = -legSwing;
+            }
+          }
         });
 
         if (ballMesh && ballShadow) {
           const bz = Math.max(0.28, f.ball.z || 0);
-          ballMesh.position.set(f.ball.x, f.ball.y, bz);
+          ballMesh.position.copy(ballPos);
           ballShadow.position.set(f.ball.x, f.ball.y, 0.03);
           ballShadow.scale.setScalar(Math.max(0.4, 1.0 - (bz * 0.08)));
         }
@@ -1914,6 +2180,34 @@ HTML_TEMPLATE = """
       render(currentFrame);
     }
 
+    // 3D Camera Angles Preset Controller
+    function setCameraPreset(mode) {
+      if (!camera) return;
+      if (activeView !== '3d') switchView('3d');
+
+      const btns = document.querySelectorAll('.cam-btn');
+      btns.forEach(b => {
+        if (b.getAttribute('onclick') && b.getAttribute('onclick').includes(mode)) b.classList.add('active');
+        else b.classList.remove('active');
+      });
+
+      if (controls) controls.target.set(52.5, 34, 0);
+
+      if (mode === 'tactical') {
+        camera.position.set(52.5, -55, 60);
+      } else if (mode === 'broadcast') {
+        camera.position.set(52.5, -78, 38);
+      } else if (mode === 'goal') {
+        camera.position.set(-18, 34, 18);
+        if (controls) controls.target.set(52.5, 34, 0);
+      } else if (mode === 'top') {
+        camera.position.set(52.5, 34, 98);
+      }
+      camera.lookAt(52.5, 34, 0);
+      if (controls) controls.update();
+      if (renderer && scene) renderer.render(scene, camera);
+    }
+
     function onSlide(val) {
       currentFrame = parseInt(val);
       render(currentFrame);
@@ -1984,6 +2278,14 @@ HTML_TEMPLATE = """
           currentMetadata = data.metadata || {};
           maxFrames = matchData.length;
           currentFrame = 1;
+
+          // Clear previous match player 3D meshes from Three.js scene
+          if (threeInitialized && scene) {
+            Object.keys(playerMeshes).forEach(pid => {
+              scene.remove(playerMeshes[pid]);
+              delete playerMeshes[pid];
+            });
+          }
 
           // Update Scoreboard Team Names, Crest Badges & Colors
           if (currentMetadata.home_team) {
