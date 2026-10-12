@@ -115,3 +115,10 @@ class PitchControlEngine:
             "home_pct": home_pct,
             "away_pct": away_pct
         }
+
+# Auto-generated incremental update
+import numpy as np
+
+def calculate_reaction_time_vector(vx, vy, reaction_s=0.7):
+    return np.array([vx * reaction_s, vy * reaction_s])
+
