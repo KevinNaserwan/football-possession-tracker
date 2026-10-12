@@ -462,16 +462,12 @@ HTML_TEMPLATE = """
     const playerMeshes = {};
     let threeInitialized = false;
 
-    function isWebGLSupported() {
-      try {
-        const testCanvas = document.createElement('canvas');
-        return !!(window.WebGLRenderingContext && (testCanvas.getContext('webgl') || testCanvas.getContext('experimental-webgl')));
-      } catch (e) {
-        return false;
-      }
-    }
+    // Force 3D Stadium as primary default view
+    activeView = '3d';
 
-    if (isWebGLSupported() && typeof THREE !== 'undefined') {
+    function initThreeEngine() {
+      if (typeof THREE === 'undefined') return false;
+
       try {
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0x06090e);
@@ -484,7 +480,29 @@ HTML_TEMPLATE = """
         camera.position.set(52.5, -60, 65);
         camera.up.set(0, 0, 1);
 
-        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'default' });
+        // Try creating WebGL renderer with broad hardware/software compatibility
+        let createdRenderer = null;
+        const configCandidates = [
+          { antialias: true, alpha: true, powerPreference: 'default' },
+          { antialias: false, alpha: true, failIfMajorPerformanceCaveat: false },
+          { antialias: false, alpha: false, preserveDrawingBuffer: true, failIfMajorPerformanceCaveat: false }
+        ];
+
+        for (const cfg of configCandidates) {
+          try {
+            createdRenderer = new THREE.WebGLRenderer(cfg);
+            if (createdRenderer) break;
+          } catch (cfgErr) {
+            console.warn("Attempting next WebGL config candidate...", cfgErr);
+          }
+        }
+
+        if (!createdRenderer) {
+          console.warn("Could not create WebGLRenderer under candidate configurations.");
+          return false;
+        }
+
+        renderer = createdRenderer;
         renderer.setSize(initW, initH);
         renderer.shadowMap.enabled = true;
         container.appendChild(renderer.domElement);
@@ -525,15 +543,16 @@ HTML_TEMPLATE = """
         const outerMesh = new THREE.Mesh(outerGeo, outerMat);
         outerMesh.position.set(52.5, 34, -0.05);
         scene.add(outerMesh);
-        threeInitialized = true;
-      } catch (e) {
-        console.warn("Three.js WebGL context creation failed; falling back to 2D Planar:", e);
-        threeInitialized = false;
+
+        return true;
+      } catch (err) {
+        console.error("Three.js setup encountered error:", err);
+        return false;
       }
-    } else {
-      console.log("WebGL not available or disabled; using High-Fidelity 2D Broadcast Pitch");
-      threeInitialized = false;
     }
+
+    threeInitialized = initThreeEngine();
+    console.log("Three.js 3D Stadium initialized:", threeInitialized);
 
     // 3D Pitch Lines Wireframe
     function create3DPitchLines() {
@@ -927,13 +946,8 @@ HTML_TEMPLATE = """
       }
     }
 
-    // Initialize active view layout and renderers
-    if (threeInitialized) {
-      switchView('3d');
-    } else {
-      console.warn("Three.js not initialized; defaulting activeView to 2d");
-      switchView('2d');
-    }
+    // Default unconditionally to 3D Stadium
+    switchView('3d');
 
     // Window Resize Handling
     window.addEventListener('resize', () => {
