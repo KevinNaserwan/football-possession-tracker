@@ -57,8 +57,7 @@ for f in frames:
         "match_time": f.get("match_time", "14:00"),
         "ball": f["ball"],
         "players": f["players"],
-        "possession": res,
-        "grid": surface_grid
+        "possession": res
     })
 
 total_frames = max(1, len(frames))
@@ -71,11 +70,14 @@ HTML_TEMPLATE = """
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Barça Innovation Hub · 3D Interactive Tactical Pitch & Kinematics Engine</title>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <!-- Three.js & OrbitControls locally hosted for 100% offline & firewall-safe rendering -->
-  <script src="/static/js/three.min.js"></script>
-  <script src="/static/js/OrbitControls.js"></script>
+  <!-- Three.js & OrbitControls locally hosted with cache buster -->
+  <script src="/static/js/three.min.js?v=2.0"></script>
+  <script src="/static/js/OrbitControls.js?v=2.0"></script>
   <style>
     :root {
       --bg: #06080d;
@@ -416,7 +418,8 @@ HTML_TEMPLATE = """
   </div>
 
   <script>
-    let matchData = [];
+    const initialFrame = {{ initial_frame_json|safe }};
+    let matchData = [initialFrame];
     let maxFrames = {{ total_frames }};
     let currentFrame = 1;
     let isPlaying = false;
@@ -452,21 +455,38 @@ HTML_TEMPLATE = """
           controls.maxPolarAngle = Math.PI / 2.05; // Prevent camera clipping below ground
         }
 
-        // Lighting
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+        // Lighting: Stadium floodlights
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
         scene.add(ambientLight);
 
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.75);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
         dirLight.position.set(52.5, -40, 90);
         dirLight.castShadow = true;
         scene.add(dirLight);
 
-        // 3D Pitch Turf Mesh (105m x 68m)
+        // Secondary floodlight for stadium ambience
+        const dirLight2 = new THREE.DirectionalLight(0xa7f3d0, 0.4);
+        dirLight2.position.set(52.5, 110, 80);
+        scene.add(dirLight2);
+
+        // 3D Pitch Turf Mesh (105m x 68m) - Vibrant Pitch Grass
         const pitchGeometry = new THREE.PlaneGeometry(105, 68);
-        const pitchMaterial = new THREE.MeshStandardMaterial({ color: 0x0c381a, roughness: 0.8, metalness: 0.1 });
+        const pitchMaterial = new THREE.MeshStandardMaterial({
+          color: 0x1b4d2e,
+          roughness: 0.6,
+          metalness: 0.05,
+          side: THREE.DoubleSide
+        });
         pitchMesh = new THREE.Mesh(pitchGeometry, pitchMaterial);
         pitchMesh.position.set(52.5, 34, 0);
         scene.add(pitchMesh);
+
+        // Stadium Pitch Surrounding Border / Sidewalk Turf
+        const outerGeo = new THREE.PlaneGeometry(125, 84);
+        const outerMat = new THREE.MeshStandardMaterial({ color: 0x0f2918, roughness: 0.9, side: THREE.DoubleSide });
+        const outerMesh = new THREE.Mesh(outerGeo, outerMat);
+        outerMesh.position.set(52.5, 34, -0.05);
+        scene.add(outerMesh);
         threeInitialized = true;
       } else {
         console.warn("THREE is not defined, falling back to 2D canvas");
@@ -748,15 +768,18 @@ HTML_TEMPLATE = """
       }
     });
 
-    // Fetch match frames asynchronously
+    // Render frame 1 immediately from initial embedded payload!
+    render(1);
+
+    // Fetch full 1,500 match frames asynchronously
     fetch('/api/frames')
       .then(res => res.json())
       .then(data => {
         matchData = data;
         maxFrames = data.length;
         document.getElementById('frame-slider').max = maxFrames;
-        document.getElementById('frame-label').textContent = `1 / ${maxFrames}`;
-        render(1);
+        document.getElementById('frame-label').textContent = `${currentFrame} / ${maxFrames}`;
+        render(currentFrame);
       })
       .catch(err => {
         console.error("Failed to load match tracking frames:", err);
@@ -766,18 +789,27 @@ HTML_TEMPLATE = """
 </html>
 """
 
+@app.after_request
+def add_header(response):
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
+
 @app.route("/api/frames")
 def get_frames():
     return jsonify(processed_frames)
 
 @app.route("/")
 def index():
+    initial_frame = processed_frames[0] if processed_frames else {}
     return render_template_string(
         HTML_TEMPLATE,
         total_frames=total_frames,
         home_pct=(home_count / total_frames) * 100.0,
         away_pct=(away_count / total_frames) * 100.0,
-        turnovers=turnovers
+        turnovers=turnovers,
+        initial_frame_json=json.dumps(initial_frame)
     )
 
 if __name__ == "__main__":
