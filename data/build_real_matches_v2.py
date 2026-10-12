@@ -20,7 +20,7 @@ HOME_433_FORM = {
     "H7": (58.0, 14.0, "RW"),
     "H8": (46.0, 25.0, "CM"),
     "H9": (46.0, 43.0, "CM"),
-    "H10": (66.0, 34.0, "ST"),
+    "H10": (68.0, 34.0, "ST"),
     "H11": (58.0, 54.0, "LW"),
 }
 
@@ -32,10 +32,10 @@ AWAY_4231_FORM = {
     "A5": (81.0, 58.0, "RB"),
     "A6": (69.0, 27.0, "DM"),
     "A7": (69.0, 41.0, "DM"),
-    "A8": (57.0, 34.0, "AM"),
+    "A8": (60.0, 32.5, "AM"),
     "A9": (57.0, 12.0, "LM"),
     "A10": (57.0, 56.0, "RM"),
-    "A11": (54.0, 34.0, "ST"),
+    "A11": (49.0, 35.5, "ST"),
 }
 
 POS_TO_SLOT_HOME = {
@@ -555,11 +555,14 @@ def build_smooth_match(m_def):
             goal_dest = (g["entry_x"], g["entry_y"])
 
             # 1. Approach dribble / pass towards shot location
+            # Calculate dynamic duration: ensure player running at realistic pace (~23 km/h = 0.25 m/frame) has enough time to arrive
+            dist_approach = math.hypot(shot_loc[0] - last_pt[0], shot_loc[1] - last_pt[1])
+            approach_dur = max(90, int(dist_approach / 0.23) + 25)
             plays.append({
                 "type": "PASS",
                 "from_p": assist_slot,
                 "to_p": scorer_slot,
-                "dur": 80,
+                "dur": approach_dur,
                 "start": last_pt,
                 "end": shot_loc,
                 "t_start": (max(0, target_min - 1), 30),
@@ -597,11 +600,13 @@ def build_smooth_match(m_def):
 
             # 4. Restart Kick-off from center
             # Smooth ball pass from goal net to center circle
+            dist_restart = math.hypot(52.5 - goal_dest[0], 34.0 - goal_dest[1])
+            restart_dur = max(75, int(dist_restart / 0.55))
             plays.append({
                 "type": "PASS",
                 "from_p": "A1" if is_h else "H1",
                 "to_p": "A11" if is_h else "H10",
-                "dur": 75,
+                "dur": restart_dur,
                 "start": goal_dest,
                 "end": (52.5, 34.0),
                 "t_start": (min(90, target_min + 1), 30),
@@ -616,11 +621,13 @@ def build_smooth_match(m_def):
             victim_slot = f["victim_slot"]
 
             # 1. Build-up run into the tackle contest zone
+            dist_foul = math.hypot(f_loc[0] - 2.5 - last_pt[0], f_loc[1] - 1.0 - last_pt[1])
+            foul_buildup_dur = max(80, int(dist_foul / 0.23) + 20)
             plays.append({
                 "type": "PASS",
                 "from_p": victim_slot,
                 "to_p": victim_slot,
-                "dur": 65,
+                "dur": foul_buildup_dur,
                 "start": last_pt,
                 "end": (f_loc[0] - 2.5, f_loc[1] - 1.0),
                 "t_start": (max(0, target_min - 1), 20),
@@ -845,14 +852,15 @@ def build_smooth_match(m_def):
 
             diff_x = tgt_x - cur[0]
             diff_y = tgt_y - cur[1]
-            dist = math.sqrt(diff_x**2 + diff_y**2)
+            dist = math.hypot(diff_x, diff_y)
             if dist > 0.001:
                 is_urgent = is_shooter or (p_type == "PASS" and play.get("to_p") == pid) or is_tackler
-                is_retreating = (diff_x < 0) and not is_urgent
-                max_s_x = 0.95 if is_urgent else (0.16 if is_retreating else 0.40)
-                max_s_y = 0.75 if is_urgent else 0.28
-                step_x = math.copysign(min(abs(diff_x) * (0.35 if is_urgent else 0.12), max_s_x), diff_x)
-                step_y = math.copysign(min(abs(diff_y) * (0.35 if is_urgent else 0.12), max_s_y), diff_y)
+                # Realistic human caps: urgent sprint <= 31.5 km/h (0.35m/frame), normal shifting <= 18.0 km/h (0.20m/frame)
+                max_step_mag = 0.35 if is_urgent else 0.20
+                gain = 0.16 if is_urgent else 0.08
+                step_mag = min(dist * gain, max_step_mag)
+                step_x = (diff_x / dist) * step_mag
+                step_y = (diff_y / dist) * step_mag
                 cur[0] += step_x
                 cur[1] += step_y
                 p_vx = round(step_x / dt, 2)
@@ -949,14 +957,15 @@ def build_smooth_match(m_def):
 
             diff_x = tgt_x - cur[0]
             diff_y = tgt_y - cur[1]
-            dist = math.sqrt(diff_x**2 + diff_y**2)
+            dist = math.hypot(diff_x, diff_y)
             if dist > 0.001:
                 is_urgent = is_shooter or (p_type == "PASS" and play.get("to_p") == pid) or is_tackler
-                is_retreating = (diff_x > 0) and not is_urgent
-                max_s_x = 0.95 if is_urgent else (0.16 if is_retreating else 0.40)
-                max_s_y = 0.75 if is_urgent else 0.28
-                step_x = math.copysign(min(abs(diff_x) * (0.35 if is_urgent else 0.12), max_s_x), diff_x)
-                step_y = math.copysign(min(abs(diff_y) * (0.35 if is_urgent else 0.12), max_s_y), diff_y)
+                # Realistic human caps: urgent sprint <= 31.5 km/h (0.35m/frame), normal shifting <= 18.0 km/h (0.20m/frame)
+                max_step_mag = 0.35 if is_urgent else 0.20
+                gain = 0.16 if is_urgent else 0.08
+                step_mag = min(dist * gain, max_step_mag)
+                step_x = (diff_x / dist) * step_mag
+                step_y = (diff_y / dist) * step_mag
                 cur[0] += step_x
                 cur[1] += step_y
                 p_vx = round(step_x / dt, 2)
@@ -988,6 +997,32 @@ def build_smooth_match(m_def):
                 "vy": p_vy,
                 "action": action_pose
             })
+
+        # Anti-stacking repulsion pass: prevent players from merging into each other
+        for pi in range(len(players)):
+            for pj in range(pi + 1, len(players)):
+                p1, p2 = players[pi], players[pj]
+                # Allow close contact only during sliding tackle/tumble contest
+                if p1.get("action") in ("SLIDING_TACKLE", "FOUL_FALL") or p2.get("action") in ("SLIDING_TACKLE", "FOUL_FALL"):
+                    continue
+                d_ij = math.hypot(p2["x"] - p1["x"], p2["y"] - p1["y"])
+                if d_ij < 0.85:
+                    overlap = 0.85 - d_ij
+                    push = overlap * 0.5
+                    if d_ij > 0.001:
+                        nx = (p2["x"] - p1["x"]) / d_ij
+                        ny = (p2["y"] - p1["y"]) / d_ij
+                    else:
+                        nx, ny = 1.0, 0.0
+                    p1["x"] = round(p1["x"] - nx * push, 2)
+                    p1["y"] = round(p1["y"] - ny * push, 2)
+                    p2["x"] = round(p2["x"] + nx * push, 2)
+                    p2["y"] = round(p2["y"] + ny * push, 2)
+                    # Update local state cache
+                    p_pos[p1["id"]][0] = p1["x"]
+                    p_pos[p1["id"]][1] = p1["y"]
+                    p_pos[p2["id"]][0] = p2["x"]
+                    p_pos[p2["id"]][1] = p2["y"]
 
         f_active_event = None
         if p_type == "SHOT" and play.get("is_goal"):
