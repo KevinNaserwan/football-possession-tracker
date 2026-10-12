@@ -97,6 +97,7 @@ HTML_TEMPLATE = """
   <meta http-equiv="Expires" content="0">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚽</text></svg>">
   <!-- Three.js & OrbitControls locally hosted with cache buster -->
   <script src="/static/js/three.min.js?v=2.0"></script>
   <script src="/static/js/OrbitControls.js?v=2.0"></script>
@@ -645,18 +646,326 @@ HTML_TEMPLATE = """
     }
     if (threeInitialized) animate3D();
 
-    // ---------------- 2D BROADCAST PITCH ENGINE (HIGH RESOLUTION) ----------------
+    // ---------------- CANVAS PROJECTION ENGINES (2D & UNIVERSAL 3D STADIUM) ----------------
     const canvas2D = document.getElementById('pitch-2d-canvas');
     const ctx2D = canvas2D.getContext('2d');
 
+    // Interactive 3D Perspective controls (Mouse rotation & pitch)
+    let camPitch = 0.52; // Elevation angle (~30 deg)
+    let camYaw = 0.0;    // Azimuth angle
+    let isDragging = false;
+    let dragStartX = 0;
+    let dragStartY = 0;
+
+    canvas2D.addEventListener('mousedown', (e) => {
+      if (activeView === '3d' && !threeInitialized) {
+        isDragging = true;
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
+      }
+    });
+    window.addEventListener('mousemove', (e) => {
+      if (isDragging) {
+        const dx = e.clientX - dragStartX;
+        const dy = e.clientY - dragStartY;
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
+        camYaw += dx * 0.005;
+        camPitch = Math.max(0.18, Math.min(0.95, camPitch - dy * 0.005));
+        render(currentFrame);
+      }
+    });
+    window.addEventListener('mouseup', () => { isDragging = false; });
+
     function resizeCanvas() {
-      const rect = canvas2D.getBoundingClientRect();
+      const stageEl = document.querySelector('.view-stage');
+      const rect = stageEl ? stageEl.getBoundingClientRect() : canvas2D.getBoundingClientRect();
       const dpr = window.devicePixelRatio || 1;
       canvas2D.width = Math.round((rect.width || 1050) * dpr);
       canvas2D.height = Math.round((rect.height || 520) * dpr);
     }
     resizeCanvas();
 
+    // 3D Perspective Projection Mathematics (Universal Software 3D Viewport)
+    function project3D(x, y, z, W, H) {
+      // Coordinate shift to center of pitch (52.5, 34)
+      const cx = x - 52.5;
+      const cy = y - 34.0;
+      const cz = z || 0;
+
+      // Apply Yaw rotation
+      const cosY = Math.cos(camYaw);
+      const sinY = Math.sin(camYaw);
+      const rx = cx * cosY - cy * sinY;
+      const ry = cx * sinY + cy * cosY;
+
+      // Apply Pitch tilt
+      const cosP = Math.cos(camPitch);
+      const sinP = Math.sin(camPitch);
+      const rz = cz * cosP - ry * sinP;
+      const camDist = 135.0;
+      const depth = camDist + (ry * cosP + cz * sinP);
+
+      // Perspective divide
+      const fov = Math.min(W, H) * 1.55;
+      const px = (W / 2) + (rx * fov) / depth;
+      const py = (H / 2) - (rz * fov) / depth + (H * 0.08);
+      const scale = fov / depth;
+
+      return { x: px, y: py, scale: scale, depth: depth };
+    }
+
+    // High-Fidelity Universal 3D Stadium Projection Engine
+    function render3DStadium(frameData) {
+      if (!canvas2D.width || !canvas2D.height) resizeCanvas();
+      const W = canvas2D.width;
+      const H = canvas2D.height;
+
+      // 1. Stadium Night Arena Background & Horizon Glow
+      const bgGrad = ctx2D.createRadialGradient(W / 2, H * 0.35, 10, W / 2, H * 0.35, W * 0.7);
+      bgGrad.addColorStop(0, '#0d1929');
+      bgGrad.addColorStop(0.5, '#070c14');
+      bgGrad.addColorStop(1, '#030508');
+      ctx2D.fillStyle = bgGrad;
+      ctx2D.fillRect(0, 0, W, H);
+
+      // 2. Surrounding Outer Stadium Apron / Concrete Run-off (3D Polygon)
+      const apronCorners = [
+        project3D(-8, -8, -0.05, W, H),
+        project3D(113, -8, -0.05, W, H),
+        project3D(113, 76, -0.05, W, H),
+        project3D(-8, 76, -0.05, W, H)
+      ];
+      ctx2D.fillStyle = '#0a1e12';
+      ctx2D.beginPath();
+      ctx2D.moveTo(apronCorners[0].x, apronCorners[0].y);
+      for (let i = 1; i < apronCorners.length; i++) ctx2D.lineTo(apronCorners[i].x, apronCorners[i].y);
+      ctx2D.closePath();
+      ctx2D.fill();
+
+      // 3. Realistic 3D Grass Mown Bands (10 Distinct Green Perspective Stripes)
+      const numBands = 10;
+      const bStep = 105.0 / numBands;
+      for (let i = 0; i < numBands; i++) {
+        const x0 = i * bStep;
+        const x1 = (i + 1) * bStep;
+        const p1 = project3D(x0, 0, 0, W, H);
+        const p2 = project3D(x1, 0, 0, W, H);
+        const p3 = project3D(x1, 68, 0, W, H);
+        const p4 = project3D(x0, 68, 0, W, H);
+
+        ctx2D.fillStyle = (i % 2 === 0) ? '#16532d' : '#146034';
+        ctx2D.beginPath();
+        ctx2D.moveTo(p1.x, p1.y);
+        ctx2D.lineTo(p2.x, p2.y);
+        ctx2D.lineTo(p3.x, p3.y);
+        ctx2D.lineTo(p4.x, p4.y);
+        ctx2D.closePath();
+        ctx2D.fill();
+      }
+
+      // 4. White 3D Pitch Lines & Markings
+      ctx2D.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx2D.lineWidth = Math.max(1.5, 2.0 * (W / 1200));
+
+      function draw3DPoly(pts, close = false) {
+        ctx2D.beginPath();
+        pts.forEach((pt, idx) => {
+          const pr = project3D(pt[0], pt[1], pt[2] || 0, W, H);
+          if (idx === 0) ctx2D.moveTo(pr.x, pr.y);
+          else ctx2D.lineTo(pr.x, pr.y);
+        });
+        if (close) ctx2D.closePath();
+        ctx2D.stroke();
+      }
+
+      // Perimeter Boundary Lines
+      draw3DPoly([[0, 0], [105, 0], [105, 68], [0, 68]], true);
+
+      // Halfway Line
+      draw3DPoly([[52.5, 0], [52.5, 68]]);
+
+      // Center Circle in 3D (36-segment loop)
+      const centerCirclePts = [];
+      for (let a = 0; a <= 36; a++) {
+        const theta = (a / 36) * Math.PI * 2;
+        centerCirclePts.push([52.5 + Math.cos(theta) * 9.15, 34.0 + Math.sin(theta) * 9.15]);
+      }
+      draw3DPoly(centerCirclePts, true);
+
+      // Center Spot
+      const cSpot = project3D(52.5, 34, 0, W, H);
+      ctx2D.fillStyle = '#ffffff';
+      ctx2D.beginPath();
+      ctx2D.arc(cSpot.x, cSpot.y, Math.max(2, 3.5 * cSpot.scale), 0, Math.PI * 2);
+      ctx2D.fill();
+
+      // Home Penalty Box (Left) & Away Penalty Box (Right)
+      draw3DPoly([[0, 13.84], [16.5, 13.84], [16.5, 54.16], [0, 54.16]], true);
+      draw3DPoly([[0, 24.84], [5.5, 24.84], [5.5, 43.16], [0, 43.16]], true);
+      draw3DPoly([[105, 13.84], [105 - 16.5, 13.84], [105 - 16.5, 54.16], [105, 54.16]], true);
+      draw3DPoly([[105, 24.84], [105 - 5.5, 24.84], [105 - 5.5, 43.16], [105, 43.16]], true);
+
+      // 3D Goal Posts with Vertical Height (2.44m tall) & Crossbar
+      function draw3DGoal(gx, gyMin, gyMax, depthDir) {
+        ctx2D.strokeStyle = '#ffffff';
+        ctx2D.lineWidth = 2.5;
+        // Front uprights & crossbar
+        const p1 = project3D(gx, gyMin, 0, W, H);
+        const p2 = project3D(gx, gyMin, 2.44, W, H);
+        const p3 = project3D(gx, gyMax, 2.44, W, H);
+        const p4 = project3D(gx, gyMax, 0, W, H);
+        ctx2D.beginPath();
+        ctx2D.moveTo(p1.x, p1.y);
+        ctx2D.lineTo(p2.x, p2.y);
+        ctx2D.lineTo(p3.x, p3.y);
+        ctx2D.lineTo(p4.x, p4.y);
+        ctx2D.stroke();
+
+        // 3D Net backing
+        const nb1 = project3D(gx + depthDir * 2.2, gyMin, 0, W, H);
+        const nb2 = project3D(gx + depthDir * 2.2, gyMin, 2.0, W, H);
+        const nb3 = project3D(gx + depthDir * 2.2, gyMax, 2.0, W, H);
+        const nb4 = project3D(gx + depthDir * 2.2, gyMax, 0, W, H);
+        ctx2D.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx2D.lineWidth = 1.0;
+        ctx2D.beginPath();
+        ctx2D.moveTo(p2.x, p2.y); ctx2D.lineTo(nb2.x, nb2.y); ctx2D.lineTo(nb3.x, nb3.y); ctx2D.lineTo(p3.x, p3.y);
+        ctx2D.moveTo(nb2.x, nb2.y); ctx2D.lineTo(nb1.x, nb1.y);
+        ctx2D.moveTo(nb3.x, nb3.y); ctx2D.lineTo(nb4.x, nb4.y);
+        ctx2D.stroke();
+      }
+      draw3DGoal(0, 30.34, 37.66, -1);
+      draw3DGoal(105, 30.34, 37.66, 1);
+
+      // 5. Sort Entities by Depth for Photorealistic 3D Occlusion (Z-Buffer Simulation)
+      const renderList = [];
+
+      // Add Players to Render List
+      frameData.players.forEach(p => {
+        const basePr = project3D(p.x, p.y, 0, W, H);
+        const headPr = project3D(p.x, p.y, 1.85, W, H);
+        renderList.push({
+          type: 'player',
+          depth: basePr.depth,
+          data: p,
+          base: basePr,
+          head: headPr
+        });
+      });
+
+      // Add Ball to Render List
+      const ballZ = Math.max(0.1, frameData.ball.z || 0);
+      const bShadowPr = project3D(frameData.ball.x, frameData.ball.y, 0, W, H);
+      const bAirPr = project3D(frameData.ball.x, frameData.ball.y, ballZ, W, H);
+      renderList.push({
+        type: 'ball',
+        depth: bAirPr.depth,
+        data: frameData.ball,
+        shadow: bShadowPr,
+        ball: bAirPr,
+        z: ballZ
+      });
+
+      // Sort Back to Front (Painters Algorithm)
+      renderList.sort((a, b) => b.depth - a.depth);
+
+      // 6. Draw 3D Entities
+      renderList.forEach(item => {
+        if (item.type === 'player') {
+          const p = item.data;
+          const base = item.base;
+          const head = item.head;
+          const isHome = (p.team === 'Home');
+          const rBase = Math.max(3, 5.0 * base.scale);
+
+          // Ground Contact Shadow
+          ctx2D.fillStyle = 'rgba(0, 0, 0, 0.45)';
+          ctx2D.beginPath();
+          ctx2D.ellipse(base.x, base.y, rBase * 1.5, rBase * 0.7, 0, 0, Math.PI * 2);
+          ctx2D.fill();
+
+          // 3D Player Torso (Vertical Cylinder)
+          ctx2D.fillStyle = isHome ? '#ef4444' : '#3b82f6';
+          ctx2D.beginPath();
+          ctx2D.arc(base.x, base.y - (rBase * 0.8), rBase * 1.2, 0, Math.PI * 2);
+          ctx2D.fill();
+
+          // Body connector
+          ctx2D.strokeStyle = isHome ? '#b91c1c' : '#1d4ed8';
+          ctx2D.lineWidth = rBase * 2.1;
+          ctx2D.lineCap = 'round';
+          ctx2D.beginPath();
+          ctx2D.moveTo(base.x, base.y - 4);
+          ctx2D.lineTo(head.x, head.y + 4);
+          ctx2D.stroke();
+
+          // 3D Player Head (Sphere with highlight)
+          const rHead = Math.max(3.5, 4.5 * head.scale);
+          ctx2D.fillStyle = '#fde047';
+          ctx2D.beginPath();
+          ctx2D.arc(head.x, head.y, rHead, 0, Math.PI * 2);
+          ctx2D.fill();
+
+          // ID Label Tag
+          ctx2D.fillStyle = '#ffffff';
+          ctx2D.font = `bold ${Math.max(8, Math.round(11 * head.scale))}px 'JetBrains Mono', sans-serif`;
+          ctx2D.textAlign = 'center';
+          ctx2D.textBaseline = 'bottom';
+          ctx2D.fillText(p.id.replace('Home_', 'H').replace('Away_', 'A'), head.x, head.y - rHead - 2);
+        } else if (item.type === 'ball') {
+          const sh = item.shadow;
+          const b = item.ball;
+          const z = item.z;
+
+          // Parabolic Ground Shadow (Scales down and fades as ball ascends)
+          const shadowOpacity = Math.max(0.12, 0.55 - (z * 0.08));
+          const shadowSize = Math.max(2, (6.5 * sh.scale) * Math.max(0.4, 1.0 - z * 0.1));
+          ctx2D.fillStyle = `rgba(0, 0, 0, ${shadowOpacity})`;
+          ctx2D.beginPath();
+          ctx2D.ellipse(sh.x, sh.y, shadowSize * 1.4, shadowSize * 0.7, 0, 0, Math.PI * 2);
+          ctx2D.fill();
+
+          // Altitude guideline connector if aerial
+          if (z > 0.6) {
+            ctx2D.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+            ctx2D.lineWidth = 1;
+            ctx2D.setLineDash([3, 3]);
+            ctx2D.beginPath();
+            ctx2D.moveTo(sh.x, sh.y);
+            ctx2D.lineTo(b.x, b.y);
+            ctx2D.stroke();
+            ctx2D.setLineDash([]);
+          }
+
+          // 3D Elevated Ball Sphere
+          const rBall = Math.max(4, 5.5 * b.scale);
+
+          // Golden Power Aura if High-Speed Strike
+          if (item.data.speed_kmh > 70) {
+            ctx2D.fillStyle = 'rgba(245, 158, 11, 0.35)';
+            ctx2D.beginPath();
+            ctx2D.arc(b.x, b.y, rBall * 2.2, 0, Math.PI * 2);
+            ctx2D.fill();
+          }
+
+          const ballGrad = ctx2D.createRadialGradient(b.x - (rBall * 0.3), b.y - (rBall * 0.3), rBall * 0.1, b.x, b.y, rBall);
+          ballGrad.addColorStop(0, '#ffffff');
+          ballGrad.addColorStop(0.8, '#e2e8f0');
+          ballGrad.addColorStop(1, '#64748b');
+          ctx2D.fillStyle = ballGrad;
+          ctx2D.beginPath();
+          ctx2D.arc(b.x, b.y, rBall, 0, Math.PI * 2);
+          ctx2D.fill();
+
+          ctx2D.strokeStyle = '#0f172a';
+          ctx2D.lineWidth = 1.2;
+          ctx2D.stroke();
+        }
+      });
+    }
+
+    // ---------------- 2D BROADCAST PITCH ENGINE (HIGH RESOLUTION) ----------------
     function render2D(frameData) {
       if (!canvas2D.width || !canvas2D.height) resizeCanvas();
       const W = canvas2D.width;
@@ -818,7 +1127,7 @@ HTML_TEMPLATE = """
       const f = matchData[frameIdx - 1];
       if (!f) return;
 
-      // Update 3D Positions if Three.js is running
+      // Update 3D Positions if Three.js WebGL is running
       if (threeInitialized) {
         f.players.forEach(p => {
           const mesh = getOrCreatePlayerMesh(p.id, p.team);
@@ -834,8 +1143,14 @@ HTML_TEMPLATE = """
         }
       }
 
-      // Always keep 2D canvas rendered or render when activeView is 2d / three not ready
-      if (activeView === '2d' || !threeInitialized) {
+      // Render Active Viewport on Canvas
+      if (activeView === '3d') {
+        if (!threeInitialized) {
+          // Universal 3D Stadium Projection Engine
+          render3DStadium(f);
+        }
+      } else {
+        // Planar 2D Broadcast View
         render2D(f);
       }
 
@@ -895,19 +1210,38 @@ HTML_TEMPLATE = """
       const cvs2d = document.getElementById('pitch-2d-canvas');
       const hudCam = document.getElementById('hud-camera-info');
 
-      cont3d.style.display = view === '3d' ? 'block' : 'none';
-      cvs2d.style.display = view === '2d' ? 'block' : 'none';
-      if (hudCam) hudCam.style.display = view === '3d' ? 'block' : 'none';
-
-      if (view === '3d' && threeInitialized && renderer && camera) {
-        const stage = document.querySelector('.view-stage');
-        const w = (stage ? stage.clientWidth : 0) || cont3d.clientWidth || 1050;
-        const h = (stage ? stage.clientHeight : 0) || cont3d.clientHeight || 520;
-        camera.aspect = w / h;
-        camera.updateProjectionMatrix();
-        renderer.setSize(w, h);
-        renderer.render(scene, camera);
-      } else if (view === '2d') {
+      if (view === '3d') {
+        if (threeInitialized) {
+          cont3d.style.display = 'block';
+          cvs2d.style.display = 'none';
+          if (hudCam) {
+            hudCam.style.display = 'block';
+            hudCam.textContent = '🎥 3D Orbit Camera: Left Click to Rotate | Right Click to Pan | Scroll to Zoom';
+          }
+          if (renderer && camera) {
+            const stage = document.querySelector('.view-stage');
+            const w = (stage ? stage.clientWidth : 0) || cont3d.clientWidth || 1050;
+            const h = (stage ? stage.clientHeight : 0) || cont3d.clientHeight || 520;
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+            renderer.setSize(w, h);
+            renderer.render(scene, camera);
+          }
+        } else {
+          // Hardware WebGL unavailable: Use Universal 3D Stadium on Canvas
+          cont3d.style.display = 'none';
+          cvs2d.style.display = 'block';
+          if (hudCam) {
+            hudCam.style.display = 'block';
+            hudCam.textContent = '🎥 3D Stadium View (Universal Perspective): Drag mouse to rotate angle';
+          }
+          resizeCanvas();
+        }
+      } else {
+        // 2D Planar
+        cont3d.style.display = 'none';
+        cvs2d.style.display = 'block';
+        if (hudCam) hudCam.style.display = 'none';
         resizeCanvas();
       }
 
