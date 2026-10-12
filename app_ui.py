@@ -301,6 +301,122 @@ HTML_TEMPLATE = """
       to { transform: scale(1.02); filter: drop-shadow(0 0 12px rgba(239, 68, 68, 0.9)); }
     }
 
+    /* STADIUM RUMBLE VIBRATION EFFECT */
+    @keyframes stadiumRumble {
+      0% { transform: translate(0, 0) rotate(0deg); }
+      15% { transform: translate(-3px, 2px) rotate(-0.25deg); }
+      30% { transform: translate(3px, -2px) rotate(0.25deg); }
+      45% { transform: translate(-2px, -3px) rotate(-0.2deg); }
+      60% { transform: translate(3px, 2px) rotate(0.2deg); }
+      75% { transform: translate(-2px, 1px) rotate(-0.1deg); }
+      90% { transform: translate(2px, -1px) rotate(0.1deg); }
+      100% { transform: translate(0, 0) rotate(0deg); }
+    }
+    .stadium-rumble {
+      animation: stadiumRumble 0.12s ease-in-out infinite !important;
+      border: 2px solid #ef4444 !important;
+      box-shadow: 0 0 40px rgba(239, 68, 68, 0.7), inset 0 0 25px rgba(239, 68, 68, 0.4) !important;
+    }
+
+    /* CELEBRATION GOAL POPUP MODAL */
+    .goal-popup-overlay {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.55);
+      backdrop-filter: blur(5px);
+      z-index: 100;
+      pointer-events: auto;
+      cursor: pointer;
+      animation: fadeIn 0.25s ease-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .goal-popup-card {
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.96), rgba(185, 28, 28, 0.98), rgba(245, 158, 11, 0.96));
+      border: 2px solid rgba(255, 255, 255, 0.6);
+      border-radius: 20px;
+      padding: 22px 38px;
+      text-align: center;
+      box-shadow: 0 0 50px rgba(239, 68, 68, 0.8), 0 20px 40px rgba(0, 0, 0, 0.8);
+      animation: popBounce 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      color: #ffffff;
+      max-width: 480px;
+      user-select: none;
+    }
+    @keyframes popBounce {
+      0% { transform: scale(0.3) rotate(-4deg); opacity: 0; }
+      65% { transform: scale(1.08) rotate(1.5deg); opacity: 1; }
+      100% { transform: scale(1) rotate(0deg); opacity: 1; }
+    }
+    .goal-popup-burst {
+      font-size: 2.2rem;
+      margin-bottom: 2px;
+      animation: pulseBurst 0.6s infinite alternate;
+    }
+    @keyframes pulseBurst {
+      from { transform: scale(0.9); }
+      to { transform: scale(1.15); }
+    }
+    .goal-popup-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 2.6rem;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-shadow: 0 0 20px rgba(255, 255, 255, 0.8), 0 4px 10px rgba(0, 0, 0, 0.5);
+      line-height: 1;
+      margin: 4px 0;
+    }
+    .goal-popup-scorer {
+      font-size: 1.35rem;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      margin: 6px 0;
+      color: #fef08a;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    }
+    .goal-popup-details {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin: 10px 0;
+    }
+    .popup-badge {
+      background: #ffffff;
+      color: #b91c1c;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.9rem;
+    }
+    .popup-stat {
+      font-weight: 600;
+      font-size: 0.92rem;
+    }
+    .popup-speed {
+      background: rgba(0, 0, 0, 0.45);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 800;
+      color: #fbbf24;
+      font-size: 0.92rem;
+    }
+    .goal-popup-score {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.7rem;
+      font-weight: 900;
+      margin-top: 6px;
+      letter-spacing: 0.06em;
+      text-shadow: 0 0 10px rgba(255,255,255,0.4);
+    }
+
     /* TACTICAL CHAPTERS BAR */
     .chapters-wrap::-webkit-scrollbar,
     .chapters-bar::-webkit-scrollbar {
@@ -608,12 +724,28 @@ HTML_TEMPLATE = """
 
   <div class="main-grid">
     <div class="viewport-card">
-      <div class="view-stage">
+      <div class="view-stage" id="main-view-stage">
         <div class="hud-overlay" id="hud-camera-info">
           🎥 3D Orbit Camera: Left Click to Rotate | Right Click to Pan | Scroll to Zoom
         </div>
         <div id="three-canvas-container"></div>
         <canvas id="pitch-2d-canvas" width="1050" height="680"></canvas>
+
+        <!-- CELEBRATION GOAL POPUP MODAL -->
+        <div id="goal-popup-modal" class="goal-popup-overlay" style="display: none;" onclick="this.style.display='none'">
+          <div class="goal-popup-card">
+            <div class="goal-popup-burst">💥 ⚽ 💥</div>
+            <div class="goal-popup-title">GOAAALLL!</div>
+            <div class="goal-popup-scorer" id="popup-scorer-name">ROBERT LEWANDOWSKI</div>
+            <div class="goal-popup-details">
+              <span class="popup-badge" id="popup-minute-badge">89'</span>
+              <span class="popup-stat" id="popup-type-stat">Top-Corner Bullet Strike</span>
+              <span class="popup-speed" id="popup-speed-stat">112.5 km/h</span>
+            </div>
+            <div class="goal-popup-score" id="popup-score-display">FC BARCELONA 1 - 0 REAL MADRID</div>
+            <div style="font-size: 0.72rem; color: rgba(255,255,255,0.7); margin-top: 8px;">(Click anywhere to dismiss)</div>
+          </div>
+        </div>
       </div>
       
       <div class="controls">
@@ -1124,11 +1256,34 @@ HTML_TEMPLATE = """
           ctx2D.arc(head.x, head.y - rad * 0.3, rad * 0.55, 0, Math.PI * 2);
           ctx2D.fill();
 
-          // Player ID Label
-          ctx2D.fillStyle = '#ffffff';
-          ctx2D.font = `bold ${Math.max(9, Math.round(11 * base.scale))}px 'JetBrains Mono', monospace`;
+          // Player Squad Number on Torso
+          const isHome = (p.team === 'Home');
+          const isGK = (p.role === 'GK' || p.id === 'H1' || p.id === 'A1');
+          const num = p.num !== undefined ? p.num : (p.id.replace(/[^\d]/g, '') || '');
+          const name = p.name || p.id;
+
+          ctx2D.fillStyle = (!isHome && !isGK) ? '#0f172a' : '#ffffff';
+          ctx2D.font = `bold ${Math.max(7, Math.round(9 * base.scale))}px 'JetBrains Mono', monospace`;
           ctx2D.textAlign = 'center';
-          ctx2D.fillText(p.id, head.x, head.y - rad * 0.9);
+          ctx2D.textBaseline = 'middle';
+          ctx2D.fillText(num, (base.x + head.x) / 2, (base.y + head.y) / 2);
+
+          // Player Name Label Pill above head
+          ctx2D.font = `bold ${Math.max(8, Math.round(10 * base.scale))}px 'JetBrains Mono', monospace`;
+          const pNameW = ctx2D.measureText(name).width;
+          const pLabelY = head.y - rad * 1.0;
+
+          ctx2D.fillStyle = 'rgba(15, 23, 42, 0.85)';
+          ctx2D.beginPath();
+          ctx2D.roundRect(head.x - pNameW / 2 - 3, pLabelY - 6, pNameW + 6, 12, 3);
+          ctx2D.fill();
+
+          ctx2D.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+          ctx2D.lineWidth = 0.8;
+          ctx2D.stroke();
+
+          ctx2D.fillStyle = '#ffffff';
+          ctx2D.fillText(name, head.x, pLabelY);
 
         } else if (item.type === 'ball') {
           const bData = item.data;
@@ -1188,56 +1343,286 @@ HTML_TEMPLATE = """
       if (!canvas2D.width || !canvas2D.height) resizeCanvas();
       const W = canvas2D.width;
       const H = canvas2D.height;
-      const pad = 28;
+      const padX = 42; // Padding to allow protruding goals to fit cleanly
+      const padY = 26;
+      const pitchW = W - padX * 2;
+      const pitchH = H - padY * 2;
 
-      ctx2D.fillStyle = "#1b4d2e";
-      ctx2D.fillRect(0, 0, W, H);
-
-      ctx2D.strokeStyle = "rgba(255, 255, 255, 0.8)";
-      ctx2D.lineWidth = 2;
-      ctx2D.strokeRect(pad, pad, W - pad * 2, H - pad * 2);
-
-      // Halfway line & center circle
-      const midX = W / 2;
-      ctx2D.beginPath();
-      ctx2D.moveTo(midX, pad);
-      ctx2D.lineTo(midX, H - pad);
-      ctx2D.stroke();
-
-      ctx2D.beginPath();
-      ctx2D.arc(midX, H / 2, (H - pad * 2) * 0.15, 0, Math.PI * 2);
-      ctx2D.stroke();
-
+      // Coordinate Transform: Metrica metric meters (105m x 68m) -> Screen Pixels
       function toScreen2D(x, y) {
         return {
-          sx: pad + (x / 105.0) * (W - pad * 2),
-          sy: pad + (y / 68.0) * (H - pad * 2)
+          sx: padX + (x / 105.0) * pitchW,
+          sy: padY + (y / 68.0) * pitchH
         };
       }
 
-      // Draw Players
-      frameData.players.forEach(p => {
-        const { sx, sy } = toScreen2D(p.x, p.y);
-        ctx2D.fillStyle = p.team === 'Home' ? 'var(--home)' : 'var(--away)';
+      // 1. Dark Broadcast Background
+      ctx2D.fillStyle = "#030712";
+      ctx2D.fillRect(0, 0, W, H);
+
+      // 2. Outer Technical Turf / Apron
+      ctx2D.fillStyle = "#0c2817";
+      ctx2D.beginPath();
+      ctx2D.roundRect(padX - 22, padY - 14, pitchW + 44, pitchH + 28, 8);
+      ctx2D.fill();
+
+      // 3. Alternating FIFA Mowing Grass Stripes (10 Distinct Green Bands)
+      const numStripes = 10;
+      const stripeW = pitchW / numStripes;
+      for (let i = 0; i < numStripes; i++) {
+        ctx2D.fillStyle = (i % 2 === 0) ? "#15803d" : "#166534";
+        ctx2D.fillRect(padX + i * stripeW, padY, stripeW, pitchH);
+      }
+
+      // 4. Protruding Realistic Goals with Cross-Hatched Net Mesh
+      // Goal dimensions: 7.32m wide (y: 30.34 to 37.66), 2.5m depth behind touchline
+      function drawGoal2D(isHomeGoal) {
+        const topY = toScreen2D(0, 30.34).sy;
+        const botY = toScreen2D(0, 37.66).sy;
+        const goalH = botY - topY;
+        const goalDepthPx = (2.5 / 105.0) * pitchW;
+
+        const gx0 = isHomeGoal ? padX : padX + pitchW;
+        const gxBack = isHomeGoal ? padX - goalDepthPx : padX + pitchW + goalDepthPx;
+        const netLeft = Math.min(gx0, gxBack);
+
+        // Goal Net Area Background
+        ctx2D.fillStyle = "rgba(15, 23, 42, 0.7)";
+        ctx2D.fillRect(netLeft, topY, goalDepthPx, goalH);
+
+        // Cross-hatched Netting Pattern
+        ctx2D.strokeStyle = "rgba(255, 255, 255, 0.4)";
+        ctx2D.lineWidth = 1;
         ctx2D.beginPath();
-        ctx2D.arc(sx, sy, 7, 0, Math.PI * 2);
-        ctx2D.fill();
+        const step = 5;
+        for (let x = netLeft; x <= netLeft + goalDepthPx; x += step) {
+          ctx2D.moveTo(x, topY);
+          ctx2D.lineTo(x, botY);
+        }
+        for (let y = topY; y <= botY; y += step) {
+          ctx2D.moveTo(netLeft, y);
+          ctx2D.lineTo(netLeft + goalDepthPx, y);
+        }
+        ctx2D.stroke();
 
-        ctx2D.fillStyle = "#ffffff";
-        ctx2D.font = "bold 9px 'JetBrains Mono'";
-        ctx2D.textAlign = "center";
-        ctx2D.fillText(p.id, sx, sy - 9);
-      });
+        // Goal Frame (Posts & Back Stanchion)
+        ctx2D.strokeStyle = "#ffffff";
+        ctx2D.lineWidth = 2.5;
+        ctx2D.strokeRect(netLeft, topY, goalDepthPx, goalH);
 
-      // Draw Ball
-      const { sx: bx, sy: by } = toScreen2D(frameData.ball.x, frameData.ball.y);
+        // Bright White Goal Line Mouth
+        ctx2D.strokeStyle = "rgba(255, 255, 255, 0.95)";
+        ctx2D.lineWidth = 3;
+        ctx2D.beginPath();
+        ctx2D.moveTo(gx0, topY);
+        ctx2D.lineTo(gx0, botY);
+        ctx2D.stroke();
+      }
+      drawGoal2D(true);  // Home Goal (Left)
+      drawGoal2D(false); // Away Goal (Right)
+
+      // 5. Crisp FIFA Regulation Pitch Markings
+      ctx2D.strokeStyle = "rgba(255, 255, 255, 0.9)";
+      ctx2D.lineWidth = 2;
+
+      // Outer Pitch Boundary
+      ctx2D.strokeRect(padX, padY, pitchW, pitchH);
+
+      // Halfway Line
+      const midX = padX + pitchW / 2;
+      ctx2D.beginPath();
+      ctx2D.moveTo(midX, padY);
+      ctx2D.lineTo(midX, padY + pitchH);
+      ctx2D.stroke();
+
+      // Center Circle (Radius = 9.15m)
+      const centerR = (9.15 / 105.0) * pitchW;
+      const centerY = padY + pitchH / 2;
+      ctx2D.beginPath();
+      ctx2D.arc(midX, centerY, centerR, 0, Math.PI * 2);
+      ctx2D.stroke();
+
+      // Center Spot
       ctx2D.fillStyle = "#ffffff";
       ctx2D.beginPath();
-      ctx2D.arc(bx, by, 5, 0, Math.PI * 2);
+      ctx2D.arc(midX, centerY, 3, 0, Math.PI * 2);
       ctx2D.fill();
-      ctx2D.strokeStyle = "#111827";
-      ctx2D.lineWidth = 1.5;
+
+      // Corner Arcs (Radius = 1m)
+      const cornerR = (1.5 / 105.0) * pitchW;
+      // Top-Left, Bottom-Left, Top-Right, Bottom-Right
+      ctx2D.beginPath(); ctx2D.arc(padX, padY, cornerR, 0, Math.PI * 0.5); ctx2D.stroke();
+      ctx2D.beginPath(); ctx2D.arc(padX, padY + pitchH, cornerR, Math.PI * 1.5, 0); ctx2D.stroke();
+      ctx2D.beginPath(); ctx2D.arc(padX + pitchW, padY, cornerR, Math.PI * 0.5, Math.PI); ctx2D.stroke();
+      ctx2D.beginPath(); ctx2D.arc(padX + pitchW, padY + pitchH, cornerR, Math.PI, Math.PI * 1.5); ctx2D.stroke();
+
+      // 18-Yard Penalty Boxes (16.5m depth, 40.32m width -> y: 13.84 to 54.16)
+      const pBoxW = (16.5 / 105.0) * pitchW;
+      const pBoxTopY = toScreen2D(0, 13.84).sy;
+      const pBoxH = toScreen2D(0, 54.16).sy - pBoxTopY;
+      ctx2D.strokeRect(padX, pBoxTopY, pBoxW, pBoxH);
+      ctx2D.strokeRect(padX + pitchW - pBoxW, pBoxTopY, pBoxW, pBoxH);
+
+      // 6-Yard Goal Areas (5.5m depth, 18.32m width -> y: 24.84 to 43.16)
+      const gAreaW = (5.5 / 105.0) * pitchW;
+      const gAreaTopY = toScreen2D(0, 24.84).sy;
+      const gAreaH = toScreen2D(0, 43.16).sy - gAreaTopY;
+      ctx2D.strokeRect(padX, gAreaTopY, gAreaW, gAreaH);
+      ctx2D.strokeRect(padX + pitchW - gAreaW, gAreaTopY, gAreaW, gAreaH);
+
+      // Penalty Spots (11.0m from goal line)
+      const penSpotLX = toScreen2D(11.0, 34.0).sx;
+      const penSpotRX = toScreen2D(105.0 - 11.0, 34.0).sx;
+      ctx2D.beginPath(); ctx2D.arc(penSpotLX, centerY, 3, 0, Math.PI * 2); ctx2D.fill();
+      ctx2D.beginPath(); ctx2D.arc(penSpotRX, centerY, 3, 0, Math.PI * 2); ctx2D.fill();
+
+      // Penalty D-Arcs (9.15m radius centered at penalty spot, outside box)
+      ctx2D.beginPath();
+      ctx2D.arc(penSpotLX, centerY, centerR, -0.93, 0.93);
       ctx2D.stroke();
+      ctx2D.beginPath();
+      ctx2D.arc(penSpotRX, centerY, centerR, Math.PI - 0.93, Math.PI + 0.93);
+      ctx2D.stroke();
+
+      // 6. Draw Player Jersey Kits & Squad Numbers
+      function drawJerseyKit(sx, sy, p) {
+        const isHome = (p.team === 'Home');
+        const isGK = (p.role === 'GK' || p.id === 'H1' || p.id === 'A1');
+        const num = p.num !== undefined ? p.num : (p.id.replace(/[^\d]/g, '') || '');
+        const name = p.name || p.id;
+
+        // Colors
+        let kitPrimary = isHome ? '#ef4444' : '#eab308';
+        let kitSec = isHome ? '#2563eb' : '#ffffff';
+        let numColor = '#ffffff';
+
+        if (isGK) {
+          kitPrimary = isHome ? '#10b981' : '#f97316'; // Neon green or orange for GK
+          kitSec = '#064e3b';
+          numColor = '#ffffff';
+        } else if (!isHome) {
+          numColor = '#0f172a'; // Dark number on bright yellow/white away kit
+        }
+
+        // Drop shadow for depth
+        ctx2D.fillStyle = "rgba(0, 0, 0, 0.4)";
+        ctx2D.beginPath();
+        ctx2D.ellipse(sx, sy + 3, 10, 5, 0, 0, Math.PI * 2);
+        ctx2D.fill();
+
+        // Jersey Sleeves (Left & Right Angled Shoulders)
+        ctx2D.fillStyle = kitSec;
+        ctx2D.beginPath();
+        ctx2D.arc(sx - 7, sy - 1, 4, 0, Math.PI * 2);
+        ctx2D.arc(sx + 7, sy - 1, 4, 0, Math.PI * 2);
+        ctx2D.fill();
+
+        // Jersey Torso Body (Circle Badge with Team Color)
+        ctx2D.fillStyle = kitPrimary;
+        ctx2D.beginPath();
+        ctx2D.arc(sx, sy, 8.5, 0, Math.PI * 2);
+        ctx2D.fill();
+
+        // Collar Trim
+        ctx2D.strokeStyle = kitSec;
+        ctx2D.lineWidth = 1.5;
+        ctx2D.stroke();
+
+        // Squad Number (Centered in Jersey)
+        ctx2D.fillStyle = numColor;
+        ctx2D.font = "bold 8px 'JetBrains Mono', monospace";
+        ctx2D.textAlign = "center";
+        ctx2D.textBaseline = "middle";
+        ctx2D.fillText(num, sx, sy + 0.5);
+
+        // Player Name Pill below/above kit
+        ctx2D.font = "bold 9px 'JetBrains Mono', monospace";
+        const textW = ctx2D.measureText(name).width;
+        const pillY = sy - 14;
+
+        ctx2D.fillStyle = "rgba(15, 23, 42, 0.85)";
+        ctx2D.beginPath();
+        ctx2D.roundRect(sx - textW / 2 - 4, pillY - 7, textW + 8, 13, 3);
+        ctx2D.fill();
+
+        ctx2D.strokeStyle = "rgba(255, 255, 255, 0.25)";
+        ctx2D.lineWidth = 0.8;
+        ctx2D.stroke();
+
+        ctx2D.fillStyle = "#ffffff";
+        ctx2D.textBaseline = "middle";
+        ctx2D.fillText(name, sx, pillY - 0.5);
+      }
+
+      // Draw all players
+      frameData.players.forEach(p => {
+        const { sx, sy } = toScreen2D(p.x, p.y);
+        drawJerseyKit(sx, sy, p);
+      });
+
+      // 7. Draw Ball with Telstar Pattern, Elevation Shadow & Strike Fire Glow
+      const b = frameData.ball;
+      const { sx: bx, sy: by } = toScreen2D(b.x, b.y);
+      const bElev = b.z || 0;
+      const speed = b.speed_kmh || 0;
+
+      // Ball Ground Shadow (Expands and fades with elevation)
+      const shadowAlpha = Math.max(0.12, 0.55 - bElev * 0.08);
+      const shadowR = Math.max(2.5, 5.0 - bElev * 0.4);
+      ctx2D.fillStyle = `rgba(0, 0, 0, ${shadowAlpha})`;
+      ctx2D.beginPath();
+      ctx2D.ellipse(bx, by, shadowR * 1.3, shadowR * 0.7, 0, 0, Math.PI * 2);
+      ctx2D.fill();
+
+      // Ball Elevation Offset (Draw ball slightly higher if in air)
+      const ballVisualY = by - (bElev * 3.5);
+
+      // Tether line if in flight
+      if (bElev > 0.4) {
+        ctx2D.strokeStyle = "rgba(255, 255, 255, 0.45)";
+        ctx2D.lineWidth = 1;
+        ctx2D.setLineDash([2, 2]);
+        ctx2D.beginPath();
+        ctx2D.moveTo(bx, by);
+        ctx2D.lineTo(bx, ballVisualY);
+        ctx2D.stroke();
+        ctx2D.setLineDash([]);
+      }
+
+      // High-speed Strike Halo / Flame Trail
+      if (speed > 75) {
+        ctx2D.fillStyle = "rgba(239, 68, 68, 0.45)";
+        ctx2D.beginPath();
+        ctx2D.arc(bx, ballVisualY, 9, 0, Math.PI * 2);
+        ctx2D.fill();
+
+        ctx2D.strokeStyle = "#ef4444";
+        ctx2D.lineWidth = 2;
+        ctx2D.beginPath();
+        ctx2D.arc(bx, ballVisualY, 10, 0, Math.PI * 2);
+        ctx2D.stroke();
+      }
+
+      // Ball Sphere with Radial Shading (Telstar style)
+      const ballGrad = ctx2D.createRadialGradient(bx - 1.5, ballVisualY - 1.5, 0.8, bx, ballVisualY, 5.5);
+      ballGrad.addColorStop(0, "#ffffff");
+      ballGrad.addColorStop(0.7, "#e2e8f0");
+      ballGrad.addColorStop(1, "#64748b");
+
+      ctx2D.fillStyle = ballGrad;
+      ctx2D.beginPath();
+      ctx2D.arc(bx, ballVisualY, 5.5, 0, Math.PI * 2);
+      ctx2D.fill();
+
+      ctx2D.strokeStyle = "#0f172a";
+      ctx2D.lineWidth = 1.2;
+      ctx2D.stroke();
+
+      // Telstar Black Pentagons
+      ctx2D.fillStyle = "#0f172a";
+      ctx2D.beginPath();
+      ctx2D.arc(bx - 1, ballVisualY - 1, 1.8, 0, Math.PI * 2);
+      ctx2D.fill();
     }
 
     // ---------------- FRAME RENDERER CONTROLLER ----------------
@@ -1320,6 +1705,10 @@ HTML_TEMPLATE = """
           }
           if (Math.abs(totalSec - gSec) <= 100) {
             activeGoal = g;
+            if (g.score_after) {
+              hScore = g.score_after[0];
+              aScore = g.score_after[1];
+            }
           }
         });
       }
@@ -1327,14 +1716,38 @@ HTML_TEMPLATE = """
       document.getElementById('sb-score-home').textContent = hScore;
       document.getElementById('sb-score-away').textContent = aScore;
 
-      // Dynamic Goal Banner Celebration
+      // Dynamic Goal Banner Celebration & Vibration Rumble + Popup Modal
       const goalBanner = document.getElementById('goal-alert-banner');
+      const stageEl = document.getElementById('main-view-stage');
+      const goalModal = document.getElementById('goal-popup-modal');
+
       if (activeGoal) {
         goalBanner.style.display = 'inline-flex';
         document.getElementById('goal-alert-text').textContent = 
           `GOAL! ${activeGoal.scorer} (${activeGoal.minute}') · ${activeGoal.type} (${activeGoal.speed_kmh} km/h) 🔥`;
+
+        // Trigger Screen Rumble & Vibration Effect
+        if (stageEl) stageEl.classList.add('stadium-rumble');
+
+        // Populate and display Goal Popup Celebration Modal (if within peak goal moment: 30 seconds)
+        if (goalModal) {
+          const gSec = activeGoal.minute * 60 + activeGoal.second;
+          if (Math.abs(totalSec - gSec) <= 30) {
+            document.getElementById('popup-scorer-name').textContent = activeGoal.scorer.toUpperCase();
+            document.getElementById('popup-minute-badge').textContent = `${activeGoal.minute}'`;
+            document.getElementById('popup-type-stat').textContent = activeGoal.type;
+            document.getElementById('popup-speed-stat').textContent = `${activeGoal.speed_kmh} km/h`;
+
+            const hTeamName = currentMetadata?.home_team?.name || 'HOME';
+            const aTeamName = currentMetadata?.away_team?.name || 'AWAY';
+            document.getElementById('popup-score-display').textContent = `${hTeamName} ${hScore} - ${aScore} ${aTeamName}`;
+            goalModal.style.display = 'flex';
+          }
+        }
       } else {
         goalBanner.style.display = 'none';
+        if (stageEl) stageEl.classList.remove('stadium-rumble');
+        if (goalModal) goalModal.style.display = 'none';
       }
 
       // Active Chapter Button Highlight

@@ -41,6 +41,9 @@ class MetricaTrackingParser:
             norm_players.append({
                 "id": str(p.get("id")),
                 "team": str(p.get("team")),
+                "num": int(p.get("num", 0)),
+                "name": str(p.get("name", "")),
+                "role": str(p.get("role", "")),
                 "x": x_m,
                 "y": y_m,
                 "z": float(p.get("z", 0.0)),
