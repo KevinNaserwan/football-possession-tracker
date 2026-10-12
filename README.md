@@ -29,23 +29,54 @@ Rather than relying purely on Euclidean distance to the ball (which fails during
 
 ## 🏛️ System Architecture
 
-```mermaid
-flowchart TD
-    A[Broadcast Video / ATD Feed] --> B[Pitch Landmark Detection]
-    B --> C[Planar Homography Matrix H]
-    C --> D[Kalman Trajectory Smoother]
-    D --> E[Pitch Plane Coordinates 105x68m]
-    
-    E --> F[Ball Trajectory State Machine]
-    E --> G[Player Velocity & Acceleration Vectors]
-    
-    F --> H[Spearman Pitch Control Model]
-    G --> H
-    
-    H --> I[Frame-by-Frame Team Possession Evaluator]
-    I --> J[HMM Temporal Consistency Filter]
-    J --> K[Official Match Tagging Output CSV / JSON]
-    J --> L[2D Pitch Visualizer & Overlay]
+```
++-------------------------------------------------------------------------+
+|                       VIDEO & DATA INGESTION ENGINE                     |
+|                 Broadcast Video Stream / ATD Tracking Feed              |
++------------------------------------+------------------------------------+
+                                     |
+                                     v
++-------------------------------------------------------------------------+
+|                    CALIBRATION & SPATIAL PROJECTION                     |
+|     Pitch Landmark Detection  --->  Planar Homography Transformation (H) |
+|                                     |                                   |
+|                                     v                                   |
+|                        Kalman Trajectory Smoother                       |
+|                                     |                                   |
+|                                     v                                   |
+|                   Pitch Plane Coordinates (105m x 68m)                  |
++------------------------------------+------------------------------------+
+                                     |
+                   +-----------------+-----------------+
+                   |                                   |
+                   v                                   v
++------------------------------------+ +----------------------------------+
+|    BALL TRAJECTORY STATE MACHINE   | |    PLAYER KINEMATICS ENGINE      |
+|    Flight / Ground / Loose Ball    | |    Velocity & Acceleration Vector|
++------------------+-----------------+ +-----------------+----------------+
+                   |                                     |
+                   +-----------------+-------------------+
+                                     |
+                                     v
++-------------------------------------------------------------------------+
+|                       SPEARMAN PITCH CONTROL MODEL                      |
+|             Dynamic Time-to-Intercept (Delta t) Calculation             |
+|             Continuous Ball Control Probability Surface                 |
++------------------------------------+------------------------------------+
+                                     |
+                                     v
++-------------------------------------------------------------------------+
+|                   FRAME-BY-FRAME POSSESSION EVALUATOR                   |
+|                                    |                                    |
+|                                    v                                    |
+|                  HMM Temporal Consistency Markov Filter                 |
+|                                    |                                    |
+|         +--------------------------+--------------------------+         |
+|         |                                                     |         |
+|         v                                                     v         |
+|  Official Match Tagging Output                      2D Tactical Visualizer|
+|  (Time Series CSV / JSON Feeds)                     & Video Overlay Pipe|
++-------------------------------------------------------------------------+
 ```
 
 ---
