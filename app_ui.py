@@ -11,57 +11,79 @@ app = Flask(__name__)
 parser = MetricaTrackingParser()
 pipeline = FullPossessionPipeline()
 
-DATASET_FILE = "data/sample_match_tracking.json"
-frames = parser.load_json_match(DATASET_FILE) if os.path.exists(DATASET_FILE) else []
+MATCH_CATALOG = {
+    "MATCH_EL_CLASICO": {
+        "id": "MATCH_EL_CLASICO",
+        "title": "⚽ Match 1: FC Barcelona vs Real Madrid CF (Camp Nou - 32' Wing Overload & Top Corner Goal)",
+        "file": "data/match_el_clasico.json"
+    },
+    "MATCH_UCL_TACTICAL": {
+        "id": "MATCH_UCL_TACTICAL",
+        "title": "🏆 Match 2: Manchester City vs Inter Milan (UCL Final - 67' Midfield Press & Counter)",
+        "file": "data/match_ucl_tactical.json"
+    },
+    "MATCH_WORLD_CUP": {
+        "id": "MATCH_WORLD_CUP",
+        "title": "🌍 Match 3: Argentina vs France (World Cup Final - 88' Rapid Counter & Bullet Strike)",
+        "file": "data/match_world_cup.json"
+    }
+}
 
-processed_frames = []
-home_count = 0
-away_count = 0
-contested_count = 0
-turnovers = []
-last_team = None
+MATCH_CACHE = {}
 
-print(f"Pre-calculating telemetry & pitch control metrics for {len(frames)} frames...")
+def process_match_file(filepath):
+    if not os.path.exists(filepath):
+        filepath = "data/sample_match_tracking.json"
+    frames = parser.load_json_match(filepath) if os.path.exists(filepath) else []
+    
+    pipe = FullPossessionPipeline()
+    p_frames = []
+    h_cnt = 0
+    a_cnt = 0
+    t_overs = []
+    l_team = None
 
-for f in frames:
-    res = pipeline.process_frame(f)
-    team = res.get("smoothed_team")
-    if team == "Home":
-        home_count += 1
-    elif team == "Away":
-        away_count += 1
-    else:
-        contested_count += 1
+    for f in frames:
+        res = pipe.process_frame(f)
+        team = res.get("smoothed_team")
+        if team == "Home":
+            h_cnt += 1
+        elif team == "Away":
+            a_cnt += 1
 
-    if last_team and team and team != last_team and team != "Contested":
-        turnovers.append({
+        if l_team and team and team != l_team and team != "Contested":
+            t_overs.append({
+                "frame_id": f["frame_id"],
+                "match_time": f.get("match_time", "14:00"),
+                "from": l_team,
+                "to": team
+            })
+        if team and team != "Contested":
+            l_team = team
+
+        p_frames.append({
             "frame_id": f["frame_id"],
             "match_time": f.get("match_time", "14:00"),
-            "from": last_team,
-            "to": team
+            "ball": f["ball"],
+            "players": f["players"],
+            "possession": res
         })
-    if team and team != "Contested":
-        last_team = team
 
-    # Downsampled pitch control grid
-    pc_surface = pipeline.pitch_control_engine.calculate_pitch_control_surface(
-        [p for p in f['players'] if p['team'] == 'Home'],
-        [p for p in f['players'] if p['team'] == 'Away']
-    )['home_surface']
-    
-    h_down = pc_surface[::2, ::2]
-    surface_grid = [[round(float(v), 2) for v in row] for row in h_down]
+    t_frames = max(1, len(frames))
+    return {
+        "frames": p_frames,
+        "total_frames": t_frames,
+        "home_pct": (h_cnt / t_frames) * 100.0,
+        "away_pct": (a_cnt / t_frames) * 100.0,
+        "turnovers": t_overs
+    }
 
-    processed_frames.append({
-        "frame_id": f["frame_id"],
-        "match_time": f.get("match_time", "14:00"),
-        "ball": f["ball"],
-        "players": f["players"],
-        "possession": res
-    })
+print("Pre-calculating telemetry for official match catalog...")
+for m_key, m_info in MATCH_CATALOG.items():
+    MATCH_CACHE[m_key] = process_match_file(m_info["file"])
+    print(f"Loaded {m_info['title']}: {MATCH_CACHE[m_key]['total_frames']} frames")
 
-total_frames = max(1, len(frames))
-print("Pre-computation finished! Ready for high-speed streaming.")
+DEFAULT_MATCH_ID = "MATCH_EL_CLASICO"
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -303,7 +325,14 @@ HTML_TEMPLATE = """
       <h2 style="letter-spacing: -0.02em;">⚽ 3D Tactical Pitch Control & Ball Kinematics</h2>
       <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 2px;">More Than a Hack 2027 · Barça Innovation Hub & Metrica Sports</p>
     </div>
-    <div style="display: flex; align-items: center; gap: 14px;">
+    <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
+      <!-- Match Selector Dropdown -->
+      <select id="match-select" onchange="onMatchChange(this.value)" style="background: #111827; color: #f3f4f6; border: 1px solid var(--border); border-radius: 8px; padding: 7px 12px; font-size: 0.84rem; font-weight: 600; cursor: pointer; outline: none;">
+        {% for m_id, m_data in matches.items() %}
+          <option value="{{ m_id }}" {% if m_id == selected_match_id %}selected{% endif %}>{{ m_data.title }}</option>
+        {% endfor %}
+      </select>
+
       <div class="view-toggle">
         <button id="btn-view-3d" class="view-btn active" onclick="switchView('3d')">3D Stadium</button>
         <button id="btn-view-2d" class="view-btn" onclick="switchView('2d')">2D Planar</button>
@@ -356,7 +385,7 @@ HTML_TEMPLATE = """
       </div>
 
       <div class="hint-box">
-        💡 <strong>Continuous Match Playback:</strong> Tidak looping! Simulasi merepresentasikan rangkaian fase taktikal riil: <em>Buildup kiper $\rightarrow$ Umpan sayap $\rightarrow$ Duel perebutan lini tengah $\rightarrow$ Counter-attack cepat $\rightarrow$ Aerial Cross $\rightarrow$ Tendangan keras ke gawang</em>.
+        💡 <strong>Realistic Physics & Multi-Match Scenarios:</strong> Trajektori bola mengikuti fisika riil (umpan akurat dari pengumpan ke penerima, kontrol bola natural, *cross* parabolik melengkung, & tembakan keras hingga 115 km/h). Gunakan dropdown di atas untuk berpindah antara <strong>El Clásico (Camp Nou)</strong>, <strong>Final Liga Champions</strong>, dan <strong>Final Piala Dunia</strong>.
       </div>
     </div>
 
@@ -920,8 +949,27 @@ HTML_TEMPLATE = """
     // Render frame 1 immediately from initial embedded payload!
     render(1);
 
-    // Fetch full 1,500 match frames asynchronously
-    fetch('/api/frames')
+    function onMatchChange(matchId) {
+      if (isPlaying) togglePlay(); // Pause current playback
+      document.getElementById('frame-label').textContent = "Loading match...";
+      fetch(`/api/frames/${matchId}`)
+        .then(res => res.json())
+        .then(data => {
+          matchData = data;
+          maxFrames = data.length;
+          currentFrame = 1;
+          document.getElementById('frame-slider').max = maxFrames;
+          document.getElementById('frame-slider').value = 1;
+          document.getElementById('frame-label').textContent = `1 / ${maxFrames}`;
+          render(1);
+        })
+        .catch(err => {
+          console.error("Failed to switch match dataset:", err);
+        });
+    }
+
+    // Initial async fetch for default match
+    fetch('/api/frames/{{ selected_match_id }}')
       .then(res => res.json())
       .then(data => {
         matchData = data;
@@ -945,19 +993,33 @@ def add_header(response):
     response.headers["Expires"] = "0"
     return response
 
+@app.route("/api/matches")
+def get_matches():
+    return jsonify([
+        {"id": m_key, "title": m_val["title"]}
+        for m_key, m_val in MATCH_CATALOG.items()
+    ])
+
 @app.route("/api/frames")
-def get_frames():
-    return jsonify(processed_frames)
+@app.route("/api/frames/<match_id>")
+def get_frames(match_id=None):
+    m_id = match_id or DEFAULT_MATCH_ID
+    if m_id not in MATCH_CACHE:
+        m_id = DEFAULT_MATCH_ID
+    return jsonify(MATCH_CACHE[m_id]["frames"])
 
 @app.route("/")
 def index():
-    initial_frame = processed_frames[0] if processed_frames else {}
+    initial_match = MATCH_CACHE[DEFAULT_MATCH_ID]
+    initial_frame = initial_match["frames"][0] if initial_match["frames"] else {}
     return render_template_string(
         HTML_TEMPLATE,
-        total_frames=total_frames,
-        home_pct=(home_count / total_frames) * 100.0,
-        away_pct=(away_count / total_frames) * 100.0,
-        turnovers=turnovers,
+        matches=MATCH_CATALOG,
+        selected_match_id=DEFAULT_MATCH_ID,
+        total_frames=initial_match["total_frames"],
+        home_pct=initial_match["home_pct"],
+        away_pct=initial_match["away_pct"],
+        turnovers=initial_match["turnovers"],
         initial_frame_json=json.dumps(initial_frame)
     )
 
