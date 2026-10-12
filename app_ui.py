@@ -73,9 +73,9 @@ HTML_TEMPLATE = """
   <title>Barça Innovation Hub · 3D Interactive Tactical Pitch & Kinematics Engine</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <!-- Three.js & OrbitControls from CDN for high-end international 3D stadium presentation -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <!-- Three.js & OrbitControls locally hosted for 100% offline & firewall-safe rendering -->
+  <script src="/static/js/three.min.js"></script>
+  <script src="/static/js/OrbitControls.js"></script>
   <style>
     :root {
       --bg: #06080d;
@@ -416,8 +416,8 @@ HTML_TEMPLATE = """
   </div>
 
   <script>
-    const matchData = {{ match_data_json|safe }};
-    const maxFrames = matchData.length;
+    let matchData = [];
+    let maxFrames = {{ total_frames }};
     let currentFrame = 1;
     let isPlaying = false;
     let playTimer = null;
@@ -425,42 +425,60 @@ HTML_TEMPLATE = """
 
     // ---------------- THREE.JS 3D ENGINE INITIALIZATION ----------------
     const container = document.getElementById('three-canvas-container');
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x06090e);
+    let scene, camera, renderer, controls, pitchMesh, ballMesh, ballShadow;
+    const playerMeshes = {};
+    let threeInitialized = false;
 
-    const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
-    camera.position.set(52.5, -60, 65); // Angled stadium broadcast view
-    camera.up.set(0, 0, 1); // Z is vertical height!
+    try {
+      if (typeof THREE !== 'undefined') {
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x06090e);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setSize(container.clientWidth, container.clientHeight);
-    renderer.shadowMap.enabled = true;
-    container.appendChild(renderer.domElement);
+        const aspect = (container.clientWidth && container.clientHeight) ? (container.clientWidth / container.clientHeight) : (105 / 68);
+        camera = new THREE.PerspectiveCamera(45, aspect, 0.1, 1000);
+        camera.position.set(52.5, -60, 65); // Angled stadium broadcast view
+        camera.up.set(0, 0, 1); // Z is vertical height!
 
-    const controls = new THREE.OrbitControls(camera, renderer.domElement);
-    controls.target.set(52.5, 34, 0); // Pitch center
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
-    controls.maxPolarAngle = Math.PI / 2.05; // Prevent camera clipping below ground
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(container.clientWidth || 1050, container.clientHeight || 680);
+        renderer.shadowMap.enabled = true;
+        container.appendChild(renderer.domElement);
 
-    // Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.65);
-    scene.add(ambientLight);
+        if (THREE.OrbitControls) {
+          controls = new THREE.OrbitControls(camera, renderer.domElement);
+          controls.target.set(52.5, 34, 0); // Pitch center
+          controls.enableDamping = true;
+          controls.dampingFactor = 0.05;
+          controls.maxPolarAngle = Math.PI / 2.05; // Prevent camera clipping below ground
+        }
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.7);
-    dirLight.position.set(52.5, -40, 90);
-    dirLight.castShadow = true;
-    scene.add(dirLight);
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+        scene.add(ambientLight);
 
-    // 3D Pitch Turf Mesh (105m x 68m)
-    const pitchGeometry = new THREE.PlaneGeometry(105, 68);
-    const pitchMaterial = new THREE.MeshStandardMaterial({ color: 0x0c381a, roughness: 0.8, metalness: 0.1 });
-    const pitchMesh = new THREE.Mesh(pitchGeometry, pitchMaterial);
-    pitchMesh.position.set(52.5, 34, 0);
-    scene.add(pitchMesh);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.75);
+        dirLight.position.set(52.5, -40, 90);
+        dirLight.castShadow = true;
+        scene.add(dirLight);
+
+        // 3D Pitch Turf Mesh (105m x 68m)
+        const pitchGeometry = new THREE.PlaneGeometry(105, 68);
+        const pitchMaterial = new THREE.MeshStandardMaterial({ color: 0x0c381a, roughness: 0.8, metalness: 0.1 });
+        pitchMesh = new THREE.Mesh(pitchGeometry, pitchMaterial);
+        pitchMesh.position.set(52.5, 34, 0);
+        scene.add(pitchMesh);
+        threeInitialized = true;
+      } else {
+        console.warn("THREE is not defined, falling back to 2D canvas");
+      }
+    } catch (e) {
+      console.error("Three.js initialization failed:", e);
+      threeInitialized = false;
+    }
 
     // 3D Pitch Lines Wireframe
     function create3DPitchLines() {
+      if (!threeInitialized) return;
       const lineMat = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 2 });
       
       // Perimeter
@@ -500,26 +518,26 @@ HTML_TEMPLATE = """
       addGoal(0, 30.34, 37.66);
       addGoal(105, 30.34, 37.66);
     }
-    create3DPitchLines();
+    if (threeInitialized) create3DPitchLines();
 
-    // 3D Player Meshes Map
-    const playerMeshes = {};
-    const ballMesh = new THREE.Mesh(
-      new THREE.SphereGeometry(0.55, 16, 16),
-      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2, metalness: 0.1 })
-    );
-    ballMesh.castShadow = true;
-    scene.add(ballMesh);
+    if (threeInitialized) {
+      ballMesh = new THREE.Mesh(
+        new THREE.SphereGeometry(0.55, 16, 16),
+        new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2, metalness: 0.1 })
+      );
+      ballMesh.castShadow = true;
+      scene.add(ballMesh);
 
-    // Ball Shadow Ring on Turf
-    const ballShadow = new THREE.Mesh(
-      new THREE.RingGeometry(0.2, 0.7, 16),
-      new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.5, side: THREE.DoubleSide })
-    );
-    ballShadow.position.z = 0.03;
-    scene.add(ballShadow);
+      ballShadow = new THREE.Mesh(
+        new THREE.RingGeometry(0.2, 0.7, 16),
+        new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.5, side: THREE.DoubleSide })
+      );
+      ballShadow.position.z = 0.03;
+      scene.add(ballShadow);
+    }
 
     function getOrCreatePlayerMesh(id, team) {
+      if (!threeInitialized) return null;
       if (!playerMeshes[id]) {
         const group = new THREE.Group();
         
@@ -548,11 +566,12 @@ HTML_TEMPLATE = """
     }
 
     function animate3D() {
+      if (!threeInitialized) return;
       requestAnimationFrame(animate3D);
-      controls.update();
+      if (controls) controls.update();
       renderer.render(scene, camera);
     }
-    animate3D();
+    if (threeInitialized) animate3D();
 
     // ---------------- 2D CANVAS FALLBACK ----------------
     const canvas2D = document.getElementById('pitch-2d-canvas');
@@ -603,19 +622,24 @@ HTML_TEMPLATE = """
       const f = matchData[frameIdx - 1];
       if (!f) return;
 
-      // Update 3D Positions
-      f.players.forEach(p => {
-        const mesh = getOrCreatePlayerMesh(p.id, p.team);
-        mesh.position.set(p.x, p.y, p.z || 0);
-      });
+      // Update 3D Positions if Three.js is running
+      if (threeInitialized) {
+        f.players.forEach(p => {
+          const mesh = getOrCreatePlayerMesh(p.id, p.team);
+          if (mesh) mesh.position.set(p.x, p.y, p.z || 0);
+        });
 
-      // Update 3D Ball Position with Z elevation
-      const bz = Math.max(0.28, f.ball.z || 0);
-      ballMesh.position.set(f.ball.x, f.ball.y, bz);
-      ballShadow.position.set(f.ball.x, f.ball.y, 0.03);
-      ballShadow.scale.setScalar(Math.max(0.4, 1.0 - (bz * 0.08)));
+        // Update 3D Ball Position with Z elevation
+        if (ballMesh && ballShadow) {
+          const bz = Math.max(0.28, f.ball.z || 0);
+          ballMesh.position.set(f.ball.x, f.ball.y, bz);
+          ballShadow.position.set(f.ball.x, f.ball.y, 0.03);
+          ballShadow.scale.setScalar(Math.max(0.4, 1.0 - (bz * 0.08)));
+        }
+      }
 
-      if (activeView === '2d') {
+      // Always keep 2D canvas rendered or render when activeView is 2d / three not ready
+      if (activeView === '2d' || !threeInitialized) {
         render2D(f);
       }
 
@@ -709,19 +733,42 @@ HTML_TEMPLATE = """
       }
     }
 
+    // Auto check if Three.js initialized successfully, otherwise default to 2D
+    if (!threeInitialized) {
+      console.warn("Three.js not initialized; defaulting activeView to 2d");
+      switchView('2d');
+    }
+
     // Window Resize Handling
     window.addEventListener('resize', () => {
-      camera.aspect = container.clientWidth / container.clientHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(container.clientWidth, container.clientHeight);
+      if (threeInitialized && camera && renderer) {
+        camera.aspect = container.clientWidth / container.clientHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(container.clientWidth, container.clientHeight);
+      }
     });
 
-    // Render Initial Frame
-    render(1);
+    // Fetch match frames asynchronously
+    fetch('/api/frames')
+      .then(res => res.json())
+      .then(data => {
+        matchData = data;
+        maxFrames = data.length;
+        document.getElementById('frame-slider').max = maxFrames;
+        document.getElementById('frame-label').textContent = `1 / ${maxFrames}`;
+        render(1);
+      })
+      .catch(err => {
+        console.error("Failed to load match tracking frames:", err);
+      });
   </script>
 </body>
 </html>
 """
+
+@app.route("/api/frames")
+def get_frames():
+    return jsonify(processed_frames)
 
 @app.route("/")
 def index():
@@ -730,8 +777,7 @@ def index():
         total_frames=total_frames,
         home_pct=(home_count / total_frames) * 100.0,
         away_pct=(away_count / total_frames) * 100.0,
-        turnovers=turnovers,
-        match_data_json=json.dumps(processed_frames)
+        turnovers=turnovers
     )
 
 if __name__ == "__main__":
