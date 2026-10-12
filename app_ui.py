@@ -12,20 +12,30 @@ parser = MetricaTrackingParser()
 pipeline = FullPossessionPipeline()
 
 MATCH_CATALOG = {
-    "MATCH_EL_CLASICO": {
-        "id": "MATCH_EL_CLASICO",
-        "title": "⚽ Match 1: FC Barcelona vs Real Madrid (90' Full Match Timeline & 89' Winner)",
-        "file": "data/match_el_clasico.json"
+    "MATCH_EL_CLASICO_2017": {
+        "id": "MATCH_EL_CLASICO_2017",
+        "title": "⚽ Real Madrid 2 - 3 Barcelona (La Liga 2017 · Messi 92' Iconic Winner & Ramos Red)",
+        "file": "data/match_el_clasico_2017.json"
     },
-    "MATCH_UCL_TACTICAL": {
-        "id": "MATCH_UCL_TACTICAL",
-        "title": "🏆 Match 2: Man City vs Inter Milan (90' UCL Tactical Clash & Counter)",
-        "file": "data/match_ucl_tactical.json"
+    "MATCH_WORLD_CUP_2022": {
+        "id": "MATCH_WORLD_CUP_2022",
+        "title": "🌍 Argentina 3 - 3 France (World Cup 2022 Final · Lusail Epic 120' & 12 Goals)",
+        "file": "data/match_world_cup_2022.json"
     },
-    "MATCH_WORLD_CUP": {
-        "id": "MATCH_WORLD_CUP",
-        "title": "🌍 Match 3: Argentina vs France (90' World Cup Final Showdown & Thrills)",
-        "file": "data/match_world_cup.json"
+    "MATCH_EL_CLASICO_5_0": {
+        "id": "MATCH_EL_CLASICO_5_0",
+        "title": "⚡ Barcelona 5 - 0 Real Madrid (La Liga 2010 · Pep's Camp Nou Manita & 5 Goals)",
+        "file": "data/match_el_clasico_5_0.json"
+    },
+    "MATCH_UCL_WEMBLEY_2011": {
+        "id": "MATCH_UCL_WEMBLEY_2011",
+        "title": "🏆 Barcelona 3 - 1 Manchester United (UCL Final 2011 · Wembley Masterclass)",
+        "file": "data/match_ucl_wembley_2011.json"
+    },
+    "MATCH_UCL_FINAL_2015": {
+        "id": "MATCH_UCL_FINAL_2015",
+        "title": "🏆 Juventus 1 - 3 Barcelona (UCL Final 2015 · Berlin Treble Triumph)",
+        "file": "data/match_ucl_final_2015.json"
     }
 }
 
@@ -94,7 +104,7 @@ for m_key, m_info in MATCH_CATALOG.items():
     MATCH_CACHE[m_key] = process_match_file(m_info["file"])
     print(f"Loaded {m_info['title']}: {MATCH_CACHE[m_key]['total_frames']} frames")
 
-DEFAULT_MATCH_ID = "MATCH_EL_CLASICO"
+DEFAULT_MATCH_ID = "MATCH_EL_CLASICO_2017"
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -672,6 +682,198 @@ HTML_TEMPLATE = """
       letter-spacing: 0.06em;
       text-shadow: 0 0 10px rgba(255,255,255,0.4);
     }
+
+    /* GOAL ENTRY TARGET VISUALIZER (Kanan / Kiri / Atas / Bawah Titik Masuk Bola) */
+    .goal-target-visualizer {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 12px auto 6px;
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 12px;
+      padding: 10px 14px;
+      max-width: 380px;
+    }
+    .goal-post-net-diagram {
+      position: relative;
+      width: 240px;
+      height: 90px;
+      border: 3px solid #ffffff;
+      border-bottom: 2px dashed rgba(255, 255, 255, 0.5);
+      background: repeating-linear-gradient(45deg, rgba(255,255,255,0.06), rgba(255,255,255,0.06) 8px, transparent 8px, transparent 16px),
+                  repeating-linear-gradient(-45deg, rgba(255,255,255,0.06), rgba(255,255,255,0.06) 8px, transparent 8px, transparent 16px);
+      box-shadow: inset 0 0 15px rgba(0,0,0,0.5);
+      border-radius: 4px 4px 0 0;
+      margin: 6px 0;
+    }
+    .goal-target-dot {
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #fbbf24;
+      border: 2px solid #ffffff;
+      box-shadow: 0 0 14px #f59e0b, 0 0 25px #ef4444;
+      transform: translate(-50%, -50%);
+      animation: targetPulse 0.5s ease-in-out infinite alternate;
+      z-index: 10;
+    }
+    @keyframes targetPulse {
+      from { transform: translate(-50%, -50%) scale(0.9); }
+      to { transform: translate(-50%, -50%) scale(1.35); }
+    }
+    .goal-net-quadrant {
+      position: absolute;
+      font-size: 0.55rem;
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.45);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .q-tl { top: 4px; left: 6px; }
+    .q-tc { top: 4px; left: 50%; transform: translateX(-50%); }
+    .q-tr { top: 4px; right: 6px; }
+    .q-bl { bottom: 4px; left: 6px; }
+    .q-bc { bottom: 4px; left: 50%; transform: translateX(-50%); }
+    .q-br { bottom: 4px; right: 6px; }
+
+    /* GOALKEEPER ANALYTICS & CONCEDED HEATMAP MODAL */
+    .gk-analytics-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(8px);
+      z-index: 150;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .gk-analytics-modal {
+      background: #0f172a;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 18px;
+      width: 92vw;
+      max-width: 820px;
+      max-height: 88vh;
+      overflow-y: auto;
+      padding: 24px;
+      color: #f8fafc;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9);
+      animation: fadeIn 0.2s ease-out;
+    }
+    .gk-header-title {
+      font-size: 1.3rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding-bottom: 12px;
+      margin-bottom: 16px;
+    }
+    .gk-close-btn {
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      color: #fff;
+      font-size: 1.2rem;
+      border-radius: 8px;
+      width: 32px;
+      height: 32px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .gk-close-btn:hover { background: rgba(239, 68, 68, 0.8); }
+
+    .gk-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .gk-card {
+      background: rgba(30, 41, 59, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .gk-name-badge {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #38bdf8;
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .gk-net-heatmap {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 4px;
+      height: 120px;
+      border: 3px solid #cbd5e1;
+      border-bottom: 2px dashed #94a3b8;
+      background: rgba(0, 0, 0, 0.4);
+      border-radius: 6px 6px 0 0;
+      padding: 4px;
+    }
+    .gk-heat-cell {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      font-weight: 700;
+      transition: all 0.2s;
+    }
+    .gk-heat-cell.heat-0 { background: rgba(255, 255, 255, 0.05); color: #64748b; }
+    .gk-heat-cell.heat-1 { background: rgba(245, 158, 11, 0.35); color: #fde047; }
+    .gk-heat-cell.heat-2 { background: rgba(239, 68, 68, 0.55); color: #ffffff; }
+    .gk-heat-cell.heat-3 { background: rgba(185, 28, 28, 0.85); color: #ffffff; box-shadow: 0 0 10px rgba(239, 68, 68, 0.7); }
+
+    .goals-history-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+      font-family: 'JetBrains Mono', monospace;
+      margin-top: 14px;
+    }
+    .goals-history-table th {
+      background: rgba(15, 23, 42, 0.9);
+      color: #94a3b8;
+      padding: 8px 12px;
+      text-align: left;
+      font-weight: 700;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .goals-history-table td {
+      padding: 8px 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      color: #e2e8f0;
+    }
+    .goals-history-table tr:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    /* FOUL / TACKLE BANNER ALERT */
+    .foul-alert-banner {
+      background: linear-gradient(90deg, rgba(234, 179, 8, 0.9), rgba(220, 38, 38, 0.9));
+      color: #000000;
+      font-weight: 800;
+      font-size: 0.80rem;
+      padding: 6px 14px;
+      border-radius: 9999px;
+      box-shadow: 0 0 20px rgba(234, 179, 8, 0.6);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      letter-spacing: 0.02em;
+      margin-top: 4px;
+      animation: popBounce 0.3s ease-out;
+    }
   </style>
 </head>
 <body>
@@ -679,19 +881,90 @@ HTML_TEMPLATE = """
   <div id="three-canvas-container"></div>
   <canvas id="pitch-2d-canvas"></canvas>
 
-  <!-- CELEBRATION GOAL POPUP MODAL -->
+  <!-- CELEBRATION GOAL POPUP MODAL (Titik Masuk Gawang & Detail Assist/Gol) -->
   <div id="goal-popup-modal" class="goal-popup-overlay" style="display: none;" onclick="this.style.display='none'">
-    <div class="goal-popup-card">
+    <div class="goal-popup-card" onclick="event.stopPropagation()">
       <div class="goal-popup-burst">💥 ⚽ 💥</div>
       <div class="goal-popup-title">GOAAALLL!</div>
-      <div class="goal-popup-scorer" id="popup-scorer-name">ROBERT LEWANDOWSKI</div>
+      <div class="goal-popup-scorer" id="popup-scorer-name">LIONEL MESSI</div>
       <div class="goal-popup-details">
-        <span class="popup-badge" id="popup-minute-badge">89'</span>
-        <span class="popup-stat" id="popup-type-stat">Top-Corner Bullet Strike</span>
-        <span class="popup-speed" id="popup-speed-stat">112.5 km/h</span>
+        <span class="popup-badge" id="popup-minute-badge">92'</span>
+        <span class="popup-stat" id="popup-type-stat">Precision Placement (Bottom Left)</span>
+        <span class="popup-speed" id="popup-speed-stat">98.5 km/h</span>
       </div>
-      <div class="goal-popup-score" id="popup-score-display">FC BARCELONA 1 - 0 REAL MADRID</div>
-      <div style="font-size: 0.72rem; color: rgba(255,255,255,0.7); margin-top: 8px;">(Click anywhere to dismiss)</div>
+
+      <!-- Assist & Goalkeeper Facing Detail -->
+      <div style="display: flex; justify-content: center; gap: 14px; font-size: 0.85rem; margin: 6px 0 10px; font-weight: 700;">
+        <span style="color: #93c5fd;">🅰️ Assist: <span id="popup-assist-name" style="color: #ffffff;">Jordi Alba</span></span>
+        <span style="color: rgba(255,255,255,0.4);">|</span>
+        <span style="color: #fca5a5;">🧤 Conceded: <span id="popup-gk-name" style="color: #ffffff;">Keylor Navas</span></span>
+      </div>
+
+      <!-- GOAL ENTRY POINT TARGET VISUALIZER -->
+      <div class="goal-target-visualizer">
+        <div style="font-size: 0.72rem; font-weight: 800; letter-spacing: 0.05em; color: #fbbf24; text-transform: uppercase;">
+          🎯 TITIK MASUK BOLA KE DALAM GAWANG:
+        </div>
+        <div class="goal-post-net-diagram" id="goal-post-diagram">
+          <!-- Quadrant labels -->
+          <span class="goal-net-quadrant q-tl">TOP LEFT</span>
+          <span class="goal-net-quadrant q-tc">HIGH CENTER</span>
+          <span class="goal-net-quadrant q-tr">TOP RIGHT</span>
+          <span class="goal-net-quadrant q-bl">LOW LEFT</span>
+          <span class="goal-net-quadrant q-bc">LOW CENTER</span>
+          <span class="goal-net-quadrant q-br">LOW RIGHT</span>
+          <!-- Dynamic Target Dot -->
+          <div class="goal-target-dot" id="goal-target-dot" style="left: 20%; top: 75%;"></div>
+        </div>
+        <div id="popup-target-desc" style="font-size: 0.76rem; font-family: 'JetBrains Mono', monospace; color: #ffffff; font-weight: 700;">
+          Sudut Bawah Kiri (Bottom Corner Left) · Ketinggian: 0.65m
+        </div>
+      </div>
+
+      <div class="goal-popup-score" id="popup-score-display">REAL MADRID 2 - 3 FC BARCELONA</div>
+      <div style="display: flex; justify-content: center; gap: 12px; margin-top: 10px;">
+        <button class="btn" style="background: rgba(255,255,255,0.2); font-size: 0.75rem; padding: 4px 12px;" onclick="openGkAnalyticsModal()">📊 Lihat Statistik Gol Per Kiper</button>
+        <button class="btn" style="background: #ffffff; color: #000; font-size: 0.75rem; padding: 4px 12px;" onclick="document.getElementById('goal-popup-modal').style.display='none'">Tutup (Dismiss)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- GOALKEEPER ANALYTICS & CONCEDED HEATMAP MODAL -->
+  <div id="gk-analytics-modal-overlay" class="gk-analytics-overlay" style="display: none;" onclick="this.style.display='none'">
+    <div class="gk-analytics-modal" onclick="event.stopPropagation()">
+      <div class="gk-header-title">
+        <span>🧤 Peta Titik Kebobolan Per Kiper & Detail Assist/Gol</span>
+        <button class="gk-close-btn" onclick="document.getElementById('gk-analytics-modal-overlay').style.display='none'">✕</button>
+      </div>
+      <div style="font-size: 0.84rem; color: #94a3b8; margin-bottom: 14px;">
+        Analisis distribusi sisi tembakan gol yang masuk ke gawang per penjaga gawang (Top/Bottom, Left/Center/Right) dari pertandingan nyata:
+      </div>
+
+      <!-- Dynamic Goalkeepers Heatmap Grid -->
+      <div class="gk-cards-grid" id="gk-cards-container">
+        <!-- Rendered dynamically via JS -->
+      </div>
+
+      <!-- Complete Goals & Assists History Table -->
+      <div style="font-size: 0.95rem; font-weight: 800; color: #f8fafc; margin-top: 18px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 14px;">
+        📋 Histori Detail Gol & Assist Pertandingan Ini
+      </div>
+      <table class="goals-history-table">
+        <thead>
+          <tr>
+            <th>Menit</th>
+            <th>Pencetak Gol</th>
+            <th>Pemberi Assist</th>
+            <th>Tim</th>
+            <th>Kiper Lawan</th>
+            <th>Titik / Sisi Masuk Gawang</th>
+            <th>Kecepatan</th>
+          </tr>
+        </thead>
+        <tbody id="goals-history-tbody">
+          <!-- Populated via JS -->
+        </tbody>
+      </table>
     </div>
   </div>
 
@@ -748,6 +1021,9 @@ HTML_TEMPLATE = """
         <div id="goal-alert-banner" class="goal-alert-banner" style="display: none;">
           ⚽ <span id="goal-alert-text">GOAL! R. Lewandowski (89') · Bullet Strike (112.5 km/h)</span>
         </div>
+        <div id="foul-alert-banner" class="foul-alert-banner" style="display: none;">
+          ⚡ <span id="foul-alert-text">FOUL! Hard Sliding Tackle</span>
+        </div>
       </div>
 
       <!-- Top Right: 3D Camera Angles & Controls -->
@@ -761,6 +1037,7 @@ HTML_TEMPLATE = """
           <button class="cam-btn" onclick="setCameraPreset('action')">⚽ Dynamic</button>
           <button class="cam-btn" onclick="setCameraPreset('dugout')">🏟️ Dugout</button>
         </div>
+        <button class="hud-btn" id="btn-gk-analytics" onclick="openGkAnalyticsModal()" title="Peta Gol & Analisis Kiper">🧤 Kiper & Gol</button>
         <button class="hud-btn" id="btn-toggle-fullscreen" onclick="toggleBrowserFullscreen()" title="Native Browser Fullscreen">⛶ Fullscreen</button>
         <button class="hud-btn" id="btn-toggle-hud" onclick="toggleHUD()" title="Hide / Show HUD Overlays">👁️ HUD</button>
       </div>
@@ -2375,11 +2652,34 @@ HTML_TEMPLATE = """
             }
             mesh.rotation.z = targetYaw - Math.PI / 2;
 
-            // Running Leg Stride Biomechanics Animation
-            const legSwing = (speed > 0.3) ? Math.sin(frameIdx * 0.45 + (p.num || 1)) * 0.55 : 0;
-            if (mesh.userData && mesh.userData.leftLeg && mesh.userData.rightLeg) {
-              mesh.userData.leftLeg.rotation.x = legSwing;
-              mesh.userData.rightLeg.rotation.x = -legSwing;
+            // Biomechanical Animations (Running Stride vs Sliding Tackle vs Falling)
+            const action = p.action || "NORMAL";
+            if (action === "SLIDING_TACKLE") {
+              // Sliding tackle: body lowers, leans backwards, lead leg extends straight out
+              mesh.position.z = -0.22;
+              mesh.rotation.x = -Math.PI / 3.2; // Slanted slide
+              if (mesh.userData && mesh.userData.leftLeg && mesh.userData.rightLeg) {
+                mesh.userData.leftLeg.rotation.x = Math.PI / 2.2; // Slide leg forward
+                mesh.userData.rightLeg.rotation.x = -Math.PI / 4.0; // Trailing bent leg
+              }
+            } else if (action === "FOUL_FALL") {
+              // Player tripped/tackled: tumbling fall
+              mesh.position.z = -0.15;
+              mesh.rotation.y = Math.PI / 3.0; // Stumble tilt
+              mesh.rotation.x = Math.PI / 4.0;
+              if (mesh.userData && mesh.userData.leftLeg && mesh.userData.rightLeg) {
+                mesh.userData.leftLeg.rotation.x = -0.8;
+                mesh.userData.rightLeg.rotation.x = 0.5;
+              }
+            } else {
+              // Normal upright stance and running stride
+              mesh.rotation.x = 0;
+              mesh.rotation.y = 0;
+              const legSwing = (speed > 0.3) ? Math.sin(frameIdx * 0.45 + (p.num || 1)) * 0.55 : 0;
+              if (mesh.userData && mesh.userData.leftLeg && mesh.userData.rightLeg) {
+                mesh.userData.leftLeg.rotation.x = legSwing;
+                mesh.userData.rightLeg.rotation.x = -legSwing;
+              }
             }
 
             // In Be-A-Pro mode, hide floating tag of active player directly ahead of camera
@@ -2568,12 +2868,38 @@ HTML_TEMPLATE = """
         // Trigger Screen Rumble & Vibration Effect
         if (stageEl) stageEl.classList.add('stadium-rumble');
 
-        // Populate and display Goal Popup Celebration Modal
+        // Populate and display Goal Popup Celebration Modal with Goalmouth Coordinates & Target Dot
         if (goalModal) {
           document.getElementById('popup-scorer-name').textContent = activeGoal.scorer.toUpperCase();
           document.getElementById('popup-minute-badge').textContent = `${activeGoal.minute}'`;
           document.getElementById('popup-type-stat').textContent = activeGoal.type;
           document.getElementById('popup-speed-stat').textContent = `${activeGoal.speed_kmh} km/h`;
+
+          // Assist & GK facing details
+          const assistEl = document.getElementById('popup-assist-name');
+          if (assistEl) assistEl.textContent = activeGoal.assist || "Solo Effort";
+          const gkEl = document.getElementById('popup-gk-name');
+          if (gkEl) gkEl.textContent = activeGoal.goalkeeper || "Kiper Lawan";
+
+          // Calculate Dot Position inside the 240x90 Goal Post Net Diagram
+          // Pitch y for goal is 30.34m to 37.66m (span = 7.32m). In diagram: 0% is left post, 100% is right post.
+          const gY = (activeGoal.entry_y !== undefined) ? activeGoal.entry_y : 34.0;
+          const gZ = (activeGoal.entry_z !== undefined) ? activeGoal.entry_z : 1.0;
+          const normY = Math.max(0.05, Math.min(0.95, (gY - 30.34) / 7.32));
+          // Height: 0m ground (bottom 90%) to 2.44m crossbar (top 10%)
+          const normZ = Math.max(0.08, Math.min(0.92, 1.0 - (gZ / 2.44)));
+
+          const targetDot = document.getElementById('goal-target-dot');
+          if (targetDot) {
+            targetDot.style.left = `${(normY * 100).toFixed(1)}%`;
+            targetDot.style.top = `${(normZ * 100).toFixed(1)}%`;
+          }
+
+          const targetDesc = document.getElementById('popup-target-desc');
+          if (targetDesc) {
+            const sideDesc = activeGoal.zone_label || (normY < 0.35 ? "Sisi Kiri Gawang (Left)" : (normY > 0.65 ? "Sisi Kanan Gawang (Right)" : "Tengah Gawang (Center)"));
+            targetDesc.textContent = `🎯 ${sideDesc} · Ketinggian: ${gZ.toFixed(2)}m · Entry (${activeGoal.entry_x || 105}m, ${gY.toFixed(1)}m)`;
+          }
 
           const hTeamName = currentMetadata?.home_team?.name || 'HOME';
           const aTeamName = currentMetadata?.away_team?.name || 'AWAY';
@@ -2584,6 +2910,28 @@ HTML_TEMPLATE = """
         goalBanner.style.display = 'none';
         if (stageEl) stageEl.classList.remove('stadium-rumble');
         if (goalModal) goalModal.style.display = 'none';
+      }
+
+      // Dynamic Foul / Hard Sliding Tackle Banner Alert
+      const foulBanner = document.getElementById('foul-alert-banner');
+      let activeFoul = null;
+      if (currentMetadata && currentMetadata.fouls) {
+        currentMetadata.fouls.forEach(foul => {
+          const fSec = foul.minute * 60 + (foul.second || 0);
+          if (Math.abs(totalSec - fSec) <= 12) {
+            activeFoul = foul;
+          }
+        });
+      }
+      if (foulBanner) {
+        if (activeFoul) {
+          foulBanner.style.display = 'inline-flex';
+          const cardEmoji = activeFoul.card === 'Red Card' ? '🟥' : '🟨';
+          document.getElementById('foul-alert-text').textContent =
+            `${cardEmoji} FOUL (${activeFoul.minute}')! ${activeFoul.tackler} · ${activeFoul.action} (${activeFoul.card || 'Card'})`;
+        } else {
+          foulBanner.style.display = 'none';
+        }
       }
 
       // Active Chapter Button Highlight
@@ -3025,9 +3373,105 @@ HTML_TEMPLATE = """
         document.getElementById('frame-label').textContent = `${currentFrame} / ${maxFrames}`;
         render(currentFrame);
       })
-      .catch(err => {
-        console.error("Failed to load match tracking frames:", err);
-      });
+    // Open Goalkeeper Analytics & Conceded Heatmap Modal
+    function openGkAnalyticsModal() {
+      const modal = document.getElementById('gk-analytics-modal-overlay');
+      if (!modal) return;
+
+      const gkContainer = document.getElementById('gk-cards-container');
+      const tableBody = document.getElementById('goals-history-tbody');
+      if (!currentMetadata) return;
+
+      // 1. Render Goalkeeper Conceded Cards & Quadrant Heatmaps
+      const gks = currentMetadata.goalkeepers || [];
+      if (gkContainer) {
+        if (gks.length === 0) {
+          gkContainer.innerHTML = `<div style="color: #94a3b8; font-size: 0.85rem;">Belum ada gol yang bersarang ke gawang kiper pada pertandingan ini.</div>`;
+        } else {
+          gkContainer.innerHTML = gks.map(gk => {
+            const z = gk.zones || {};
+            const tl = z["TL"] || 0;
+            const tc = z["TC"] || 0;
+            const tr = z["TR"] || 0;
+            const bl = z["BL"] || 0;
+            const bc = z["BC"] || 0;
+            const br = z["BR"] || 0;
+
+            const getHeatClass = (cnt) => {
+              if (cnt === 0) return 'heat-0';
+              if (cnt === 1) return 'heat-1';
+              if (cnt === 2) return 'heat-2';
+              return 'heat-3';
+            };
+
+            return `
+              <div class="gk-card">
+                <div class="gk-name-badge">
+                  <span>🧤 ${gk.name}</span>
+                  <span style="color: #f87171; font-family: 'JetBrains Mono';">${gk.total_conceded} Kebobolan</span>
+                </div>
+                <div style="font-size: 0.72rem; color: #94a3b8; margin-bottom: 6px;">
+                  Distribusi Sisi Gawang Yang Paling Sering Kebobolan:
+                </div>
+                <div class="gk-net-heatmap">
+                  <div class="gk-heat-cell ${getHeatClass(tl)}">
+                    <span>ATAS KIRI</span>
+                    <span style="font-size: 0.95rem;">${tl}</span>
+                  </div>
+                  <div class="gk-heat-cell ${getHeatClass(tc)}">
+                    <span>ATAS TENGAH</span>
+                    <span style="font-size: 0.95rem;">${tc}</span>
+                  </div>
+                  <div class="gk-heat-cell ${getHeatClass(tr)}">
+                    <span>ATAS KANAN</span>
+                    <span style="font-size: 0.95rem;">${tr}</span>
+                  </div>
+                  <div class="gk-heat-cell ${getHeatClass(bl)}">
+                    <span>BAWAH KIRI</span>
+                    <span style="font-size: 0.95rem;">${bl}</span>
+                  </div>
+                  <div class="gk-heat-cell ${getHeatClass(bc)}">
+                    <span>BAWAH TENGAH</span>
+                    <span style="font-size: 0.95rem;">${bc}</span>
+                  </div>
+                  <div class="gk-heat-cell ${getHeatClass(br)}">
+                    <span>BAWAH KANAN</span>
+                    <span style="font-size: 0.95rem;">${br}</span>
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join('');
+        }
+      }
+
+      // 2. Render Historical Goals & Assists Table
+      const goals = currentMetadata.goals || [];
+      if (tableBody) {
+        if (goals.length === 0) {
+          tableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #94a3b8;">Belum ada data gol.</td></tr>`;
+        } else {
+          tableBody.innerHTML = goals.map(g => {
+            const teamBadge = g.team === 'Home' 
+              ? `<span style="color: var(--home); font-weight: 800;">${currentMetadata.home_team?.short || 'HOME'}</span>` 
+              : `<span style="color: var(--away); font-weight: 800;">${currentMetadata.away_team?.short || 'AWAY'}</span>`;
+            return `
+              <tr>
+                <td style="font-weight: 800; color: #fbbf24;">${g.minute}'</td>
+                <td style="font-weight: 700; color: #ffffff;">⚽ ${g.scorer}</td>
+                <td style="color: #60a5fa;">🅰️ ${g.assist || 'Solo Effort'}</td>
+                <td>${teamBadge}</td>
+                <td style="color: #f87171;">🧤 ${g.goalkeeper || '-'}</td>
+                <td style="color: #34d399;">🎯 ${g.zone_label || g.type} (${g.entry_z || 1.0}m)</td>
+                <td style="color: #f59e0b;">⚡ ${g.speed_kmh} km/h</td>
+              </tr>
+            `;
+          }).join('');
+        }
+      }
+
+      modal.style.display = 'flex';
+    }
   </script>
 </body>
 </html>
