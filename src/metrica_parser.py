@@ -23,8 +23,11 @@ class MetricaTrackingParser:
         norm_ball = {
             "x": float(ball.get("x", 0.5) * self.pitch_length if ball.get("x", 0.0) <= 1.0 else ball.get("x", 0.0)),
             "y": float(ball.get("y", 0.5) * self.pitch_width if ball.get("y", 0.0) <= 1.0 else ball.get("y", 0.0)),
+            "z": float(ball.get("z", 0.0)),
             "vx": float(ball.get("vx", 0.0)),
             "vy": float(ball.get("vy", 0.0)),
+            "vz": float(ball.get("vz", 0.0)),
+            "speed_kmh": float(ball.get("speed_kmh", 0.0)),
             "in_play": bool(ball.get("in_play", True))
         }
 
@@ -40,12 +43,14 @@ class MetricaTrackingParser:
                 "team": str(p.get("team")),
                 "x": x_m,
                 "y": y_m,
+                "z": float(p.get("z", 0.0)),
                 "vx": float(p.get("vx", 0.0)),
                 "vy": float(p.get("vy", 0.0))
             })
 
         return {
             "frame_id": frame_id,
+            "match_time": str(raw_frame.get("match_time", "00:00")),
             "ball": norm_ball,
             "players": norm_players
         }

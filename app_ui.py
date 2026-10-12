@@ -14,17 +14,17 @@ pipeline = FullPossessionPipeline()
 MATCH_CATALOG = {
     "MATCH_EL_CLASICO": {
         "id": "MATCH_EL_CLASICO",
-        "title": "⚽ Match 1: FC Barcelona vs Real Madrid CF (Camp Nou - 32' Wing Overload & Top Corner Goal)",
+        "title": "⚽ Match 1: FC Barcelona vs Real Madrid (90' Full Match Timeline & 89' Winner)",
         "file": "data/match_el_clasico.json"
     },
     "MATCH_UCL_TACTICAL": {
         "id": "MATCH_UCL_TACTICAL",
-        "title": "🏆 Match 2: Manchester City vs Inter Milan (UCL Final - 67' Midfield Press & Counter)",
+        "title": "🏆 Match 2: Man City vs Inter Milan (90' UCL Tactical Clash & Counter)",
         "file": "data/match_ucl_tactical.json"
     },
     "MATCH_WORLD_CUP": {
         "id": "MATCH_WORLD_CUP",
-        "title": "🌍 Match 3: Argentina vs France (World Cup Final - 88' Rapid Counter & Bullet Strike)",
+        "title": "🌍 Match 3: Argentina vs France (90' World Cup Final Showdown & Thrills)",
         "file": "data/match_world_cup.json"
     }
 }
@@ -63,7 +63,7 @@ def process_match_file(filepath):
 
         p_frames.append({
             "frame_id": f["frame_id"],
-            "match_time": f.get("match_time", "14:00"),
+            "match_time": f.get("match_time", "00:00"),
             "ball": f["ball"],
             "players": f["players"],
             "possession": res
@@ -1169,17 +1169,24 @@ HTML_TEMPLATE = """
       const pct = Math.min(100, (speed / 120) * 100);
       document.getElementById('shot-meter').style.width = pct + "%";
 
-      // Ball State (Ground pass vs Aerial flight vs Strike)
+      // Ball State (Dynamic real-time kinematic classification)
       const bStateEl = document.getElementById('lbl-ball-state');
-      if (f.ball.z > 2.0 && speed > 60) {
-        bStateEl.textContent = "POWER STRIKE 🔥";
+      const bz = f.ball.z || 0;
+      if (speed > 75 || (bz > 1.4 && speed > 55)) {
+        bStateEl.textContent = "POWER STRIKE / SHOT 🔥";
         bStateEl.style.color = "#ef4444";
-      } else if (f.ball.z > 1.2) {
+      } else if (bz > 1.2) {
         bStateEl.textContent = "AERIAL FLIGHT / CROSS ✈️";
         bStateEl.style.color = "#a78bfa";
-      } else {
-        bStateEl.textContent = "GROUND PASS / CONTROL";
+      } else if (speed > 25) {
+        bStateEl.textContent = "THREADED GROUND PASS ⚡";
+        bStateEl.style.color = "#38bdf8";
+      } else if (speed > 8) {
+        bStateEl.textContent = "GROUND PASS / TIKI-TAKA 🟢";
         bStateEl.style.color = "var(--accent)";
+      } else {
+        bStateEl.textContent = "BALL CONTROL & DRIBBLE ⚽";
+        bStateEl.style.color = "#facc15";
       }
 
       // Possession Sidebar
