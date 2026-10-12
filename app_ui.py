@@ -1620,35 +1620,51 @@ HTML_TEMPLATE = """
       if (speed > 75) {
         ctx2D.fillStyle = "rgba(239, 68, 68, 0.45)";
         ctx2D.beginPath();
-        ctx2D.arc(bx, ballVisualY, 9, 0, Math.PI * 2);
+        ctx2D.arc(bx, ballVisualY, 14, 0, Math.PI * 2);
         ctx2D.fill();
 
         ctx2D.strokeStyle = "#ef4444";
-        ctx2D.lineWidth = 2;
+        ctx2D.lineWidth = 2.5;
         ctx2D.beginPath();
-        ctx2D.arc(bx, ballVisualY, 10, 0, Math.PI * 2);
+        ctx2D.arc(bx, ballVisualY, 15, 0, Math.PI * 2);
         ctx2D.stroke();
       }
 
-      // Ball Sphere with Radial Shading (Telstar style)
-      const ballGrad = ctx2D.createRadialGradient(bx - 1.5, ballVisualY - 1.5, 0.8, bx, ballVisualY, 5.5);
+      // Ball Outer High-Contrast Glow Ring (Ensures high visibility across green stripes)
+      ctx2D.strokeStyle = "rgba(255, 255, 255, 0.85)";
+      ctx2D.lineWidth = 1.5;
+      ctx2D.beginPath();
+      ctx2D.arc(bx, ballVisualY, 9.8, 0, Math.PI * 2);
+      ctx2D.stroke();
+
+      // Ball Sphere with Radial Shading (Radius enlarged to 8.5px for clear broadcast visibility)
+      const ballGrad = ctx2D.createRadialGradient(bx - 2.5, ballVisualY - 2.5, 1.2, bx, ballVisualY, 8.5);
       ballGrad.addColorStop(0, "#ffffff");
-      ballGrad.addColorStop(0.7, "#e2e8f0");
-      ballGrad.addColorStop(1, "#64748b");
+      ballGrad.addColorStop(0.65, "#f1f5f9");
+      ballGrad.addColorStop(1, "#94a3b8");
 
       ctx2D.fillStyle = ballGrad;
       ctx2D.beginPath();
-      ctx2D.arc(bx, ballVisualY, 5.5, 0, Math.PI * 2);
+      ctx2D.arc(bx, ballVisualY, 8.5, 0, Math.PI * 2);
       ctx2D.fill();
 
+      // Crisp Ball Outline
       ctx2D.strokeStyle = "#0f172a";
-      ctx2D.lineWidth = 1.2;
+      ctx2D.lineWidth = 1.6;
       ctx2D.stroke();
 
-      // Telstar Black Pentagons
+      // Authentic Telstar Black Pentagons & Seams (Proportional to 8.5px radius)
       ctx2D.fillStyle = "#0f172a";
+      // Center pentagon
       ctx2D.beginPath();
-      ctx2D.arc(bx - 1, ballVisualY - 1, 1.8, 0, Math.PI * 2);
+      ctx2D.arc(bx, ballVisualY, 2.8, 0, Math.PI * 2);
+      ctx2D.fill();
+
+      // Surrounding mini patches
+      ctx2D.beginPath();
+      ctx2D.arc(bx - 4.5, ballVisualY - 3.2, 1.6, 0, Math.PI * 2);
+      ctx2D.arc(bx + 4.5, ballVisualY - 2.8, 1.6, 0, Math.PI * 2);
+      ctx2D.arc(bx, ballVisualY + 4.8, 1.6, 0, Math.PI * 2);
       ctx2D.fill();
     }
 
@@ -1727,19 +1743,26 @@ HTML_TEMPLATE = """
       let aScore = 0;
       let activeGoal = null;
 
+      // Exact Goal Line Entrance: ball enters net
+      const bx = f.ball.x;
+      const by = f.ball.y;
+      const inNet = (bx >= 104.90 && by >= 29.5 && by <= 38.5) || (bx <= 0.10 && by >= 29.5 && by <= 38.5);
+
       if (currentMetadata && currentMetadata.goals) {
         currentMetadata.goals.forEach(g => {
           const gSec = g.minute * 60 + g.second;
-          if (totalSec >= gSec) {
-            if (g.team === 'Home') hScore++;
-            else if (g.team === 'Away') aScore++;
-          }
-          if (Math.abs(totalSec - gSec) <= 100) {
-            activeGoal = g;
+          // Only increment score once ball has crossed goal line (inNet) or past goal entrance second
+          if (totalSec > gSec || (totalSec >= gSec && inNet)) {
             if (g.score_after) {
               hScore = g.score_after[0];
               aScore = g.score_after[1];
+            } else {
+              if (g.team === 'Home') hScore++;
+              else if (g.team === 'Away') aScore++;
             }
+          }
+          if (Math.abs(totalSec - gSec) <= 100) {
+            activeGoal = g;
           }
         });
       }
@@ -1752,7 +1775,19 @@ HTML_TEMPLATE = """
       const stageEl = document.getElementById('main-view-stage');
       const goalModal = document.getElementById('goal-popup-modal');
 
+      // Track if current frame is during or after goal moment
+      let isGoalMoment = false;
       if (activeGoal) {
+        const gSec = activeGoal.minute * 60 + activeGoal.second;
+        // Trigger strictly when ball hits the net OR during the post-goal celebration window
+        if (inNet && Math.abs(totalSec - gSec) <= 15) {
+          isGoalMoment = true;
+        } else if (totalSec > gSec && totalSec <= gSec + 30) {
+          isGoalMoment = true;
+        }
+      }
+
+      if (isGoalMoment && activeGoal) {
         goalBanner.style.display = 'inline-flex';
         document.getElementById('goal-alert-text').textContent = 
           `GOAL! ${activeGoal.scorer} (${activeGoal.minute}') · ${activeGoal.type} (${activeGoal.speed_kmh} km/h) 🔥`;
@@ -1760,20 +1795,17 @@ HTML_TEMPLATE = """
         // Trigger Screen Rumble & Vibration Effect
         if (stageEl) stageEl.classList.add('stadium-rumble');
 
-        // Populate and display Goal Popup Celebration Modal (if within peak goal moment: 30 seconds)
+        // Populate and display Goal Popup Celebration Modal
         if (goalModal) {
-          const gSec = activeGoal.minute * 60 + activeGoal.second;
-          if (Math.abs(totalSec - gSec) <= 30) {
-            document.getElementById('popup-scorer-name').textContent = activeGoal.scorer.toUpperCase();
-            document.getElementById('popup-minute-badge').textContent = `${activeGoal.minute}'`;
-            document.getElementById('popup-type-stat').textContent = activeGoal.type;
-            document.getElementById('popup-speed-stat').textContent = `${activeGoal.speed_kmh} km/h`;
+          document.getElementById('popup-scorer-name').textContent = activeGoal.scorer.toUpperCase();
+          document.getElementById('popup-minute-badge').textContent = `${activeGoal.minute}'`;
+          document.getElementById('popup-type-stat').textContent = activeGoal.type;
+          document.getElementById('popup-speed-stat').textContent = `${activeGoal.speed_kmh} km/h`;
 
-            const hTeamName = currentMetadata?.home_team?.name || 'HOME';
-            const aTeamName = currentMetadata?.away_team?.name || 'AWAY';
-            document.getElementById('popup-score-display').textContent = `${hTeamName} ${hScore} - ${aScore} ${aTeamName}`;
-            goalModal.style.display = 'flex';
-          }
+          const hTeamName = currentMetadata?.home_team?.name || 'HOME';
+          const aTeamName = currentMetadata?.away_team?.name || 'AWAY';
+          document.getElementById('popup-score-display').textContent = `${hTeamName} ${hScore} - ${aScore} ${aTeamName}`;
+          goalModal.style.display = 'flex';
         }
       } else {
         goalBanner.style.display = 'none';
