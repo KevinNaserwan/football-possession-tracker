@@ -177,5 +177,5 @@ Submissions are evaluated against ground-truth manual annotations provided by Ba
 ---
 
 ## 👥 Author & Acknowledgements
-- **Author**: Kevin Putrayudha Naserwan ([@KevinNaserwan](https://github.com/KevinNaserwan))
+- **Team / Author**: LM10 ([@KevinNaserwan](https://github.com/KevinNaserwan))
 - **Competition**: More Than a Hack 2027 · Barça Innovation Hub & Metrica Sports.

@@ -1,7 +1,7 @@
 # Automated Ball Possession & Pitch Control Tracking Engine
 ## Technical Solution Report · More Than A Hack 2027 (Initial Challenge)
 **Team: LM10**  
-**Authors: Kevin Naserwan & Team LM10**  
+**Author: LM10**  
 **Competition: More Than A Hack 2027 by Barça Innovation Hub (BIHUB), Metrica Sports & Mobile World Capital Barcelona**  
 **Repository: https://github.com/KevinNaserwan/football-possession-tracker**
 
