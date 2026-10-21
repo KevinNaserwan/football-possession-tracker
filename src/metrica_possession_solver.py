@@ -81,7 +81,25 @@ class MetricaPossessionSolver:
         if not os.path.exists(smart_tagging_path):
             return dead_mask, active_phase_mask, restart_priors, throw_in_events
 
+        # First pass: collect goals for FIFA Law 8 kickoff assignment
+        goals: List[Tuple[int, int, int]] = []
         tree = ET.parse(smart_tagging_path)
+        for instance in tree.iter("instance"):
+            code = instance.findtext("code", "").strip()
+            if code == "GOALS":
+                start_s = float(instance.findtext("start", 0))
+                end_s = float(instance.findtext("end", 0))
+                sf = int(round(start_s * 25.0))
+                ef = int(round(end_s * 25.0))
+                team_text = ""
+                for label in instance.findall("label"):
+                    if label.findtext("group", "") == "Team":
+                        team_text = label.findtext("text", "").lower()
+                scoring_team = 0 if "barcelona" in team_text else (1 if "atletic" in team_text or "athletic" in team_text else -1)
+                if scoring_team != -1:
+                    goals.append((sf, ef, scoring_team))
+
+        # Second pass: parse set pieces and active phases
         for instance in tree.iter("instance"):
             code = instance.findtext("code", "").strip()
             start_s = float(instance.findtext("start", 0))
@@ -119,6 +137,14 @@ class MetricaPossessionSolver:
                     })
                 elif team_val != -1:
                     restart_priors[restart_f] = team_val
+                elif "kick off" in sp_type:
+                    # FIFA Law 8 resolution for Team: N/A kickoffs
+                    if "start" in sp_type:
+                        restart_priors[restart_f] = 1 if sf < 50000 else 0
+                    else:
+                        prev_g = [g for g in goals if g[0] <= sf]
+                        if prev_g:
+                            restart_priors[restart_f] = 1 - prev_g[-1][2]  # Conceding team takes restart
 
             elif code in [
                 "PROGRESSION", "BUILD UP", "ATTACKING TRANSITION",
