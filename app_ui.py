@@ -8,42 +8,50 @@ from src.pipeline import FullPossessionPipeline
 app = Flask(__name__)
 
 # Initialize parser and pipeline
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 parser = MetricaTrackingParser()
 pipeline = FullPossessionPipeline()
 
 MATCH_CATALOG = {
+    "MATCH_BARCA_ATHLETIC_2024": {
+        "id": "MATCH_BARCA_ATHLETIC_2024",
+        "title": "⚽ FC Barcelona 2 - 1 Athletic Club (La Liga 2024 · Montjuïc · Yamal 24' & Lewandowski 75')",
+        "file": os.path.join(BASE_DIR, "data/match_barca_athletic_2024.json")
+    },
     "MATCH_EL_CLASICO_2017": {
         "id": "MATCH_EL_CLASICO_2017",
         "title": "⚽ Real Madrid 2 - 3 Barcelona (La Liga 2017 · Messi 92' Iconic Winner & Ramos Red)",
-        "file": "data/match_el_clasico_2017.json"
+        "file": os.path.join(BASE_DIR, "data/match_el_clasico_2017.json")
     },
     "MATCH_WORLD_CUP_2022": {
         "id": "MATCH_WORLD_CUP_2022",
         "title": "🌍 Argentina 3 - 3 France (World Cup 2022 Final · Lusail Epic 120' & 12 Goals)",
-        "file": "data/match_world_cup_2022.json"
+        "file": os.path.join(BASE_DIR, "data/match_world_cup_2022.json")
     },
     "MATCH_EL_CLASICO_5_0": {
         "id": "MATCH_EL_CLASICO_5_0",
         "title": "⚡ Barcelona 5 - 0 Real Madrid (La Liga 2010 · Pep's Camp Nou Manita & 5 Goals)",
-        "file": "data/match_el_clasico_5_0.json"
+        "file": os.path.join(BASE_DIR, "data/match_el_clasico_5_0.json")
     },
     "MATCH_UCL_WEMBLEY_2011": {
         "id": "MATCH_UCL_WEMBLEY_2011",
         "title": "🏆 Barcelona 3 - 1 Manchester United (UCL Final 2011 · Wembley Masterclass)",
-        "file": "data/match_ucl_wembley_2011.json"
+        "file": os.path.join(BASE_DIR, "data/match_ucl_wembley_2011.json")
     },
     "MATCH_UCL_FINAL_2015": {
         "id": "MATCH_UCL_FINAL_2015",
         "title": "🏆 Juventus 1 - 3 Barcelona (UCL Final 2015 · Berlin Treble Triumph)",
-        "file": "data/match_ucl_final_2015.json"
+        "file": os.path.join(BASE_DIR, "data/match_ucl_final_2015.json")
     }
 }
 
 MATCH_CACHE = {}
 
 def process_match_file(filepath):
+    if not os.path.isabs(filepath):
+        filepath = os.path.join(BASE_DIR, filepath)
     if not os.path.exists(filepath):
-        filepath = "data/sample_match_tracking.json"
+        filepath = os.path.join(BASE_DIR, "data/sample_match_tracking.json")
 
     metadata = {}
     if os.path.exists(filepath):
@@ -104,7 +112,7 @@ for m_key, m_info in MATCH_CATALOG.items():
     MATCH_CACHE[m_key] = process_match_file(m_info["file"])
     print(f"Loaded {m_info['title']}: {MATCH_CACHE[m_key]['total_frames']} frames")
 
-DEFAULT_MATCH_ID = "MATCH_EL_CLASICO_2017"
+DEFAULT_MATCH_ID = "MATCH_BARCA_ATHLETIC_2024"
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
