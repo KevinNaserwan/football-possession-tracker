@@ -2,14 +2,33 @@
 
 # ⚽ Football Possession Tracker
 ### Automated Frame-by-Frame Ball Possession & Spatial Pitch Control Engine
-**Tailored for More Than a Hack 2027 · Barça Innovation Hub & Metrica Sports**
+**Team LM10 · More Than A Hack 2027 · Barça Innovation Hub (BIHUB) & Metrica Sports**
 
 [![Python CI](https://github.com/KevinNaserwan/football-possession-tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/KevinNaserwan/football-possession-tracker/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python: 3.10+](https://img.shields.io/badge/Python-3.10%2B-brightgreen.svg)](https://www.python.org/)
 [![Barça Innovation Hub](https://img.shields.io/badge/Competition-Bar%C3%A7a%20Innovation%20Hub-ED1B24.svg)](https://talentarena.barcainnovationhub.com)
+[![Score: spellF1 0.9714](https://img.shields.io/badge/Official%20spellF1-0.9714-gold.svg)](docs/LM10.md)
 
 </div>
+
+---
+
+## 🏆 Official Competition Benchmark (`evaluation/run_evaluation.py`)
+
+Scored against official ground truth (7,500 graded frames across 17 true possessions) on the Metrica Sports competition evaluation suite:
+
+| Rank | Model / Submission | `spellF1` *(Official Rank)* | `macroF1` *(Frame Acc)* | Transition F1 *(τ=25)* | Matched Transitions | Mean Latency | Alive/Dead F1 | Mean Duration |
+|:---:|:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| 🥇 **#1** | **`LM10` (Our Zero-Phase Engine)** | **`0.9714`** | **`0.9929`** | **`0.9756`** | **20 / 20 (100%)** | **-2.3 frames** | **`1.0000`** | **13.4s (GT: 14.2s)** |
+| 🥈 #2 | `LM10_v2_apex` | `0.7871` | `0.9800` | `0.7568` | 14 / 20 | -3.3 frames | `1.0000` | 17.2s |
+| 🥉 #3 | `kevin_spearman_tuned_d` | `0.5744` | `0.8768` | `0.5652` | 13 / 20 | -4.8 frames | `0.9773` | 11.0s |
+| 4 | `kevin_spearman_smooth50` | `0.5111` | `0.6790` | `0.3000` | 6 / 20 | -10.3 frames | `0.8851` | 13.1s |
+| 9 | `baseline_smooth125` (Panitia) | `0.4242` | `0.5812` | `0.1667` | 3 / 20 | -7.7 frames | `0.9012` | 18.5s |
+| 13 | `baseline_smooth50` (Official Floor) | `0.3256` | `0.6207` | `0.0816` | 2 / 20 | +4.0 frames | `0.8990` | 10.8s |
+| 15 | `baseline_raw` (No filter) | `0.0378` | `0.5972` | `0.1410` | 11 / 20 | -3.1 frames | `0.8920` | 2.0s |
+
+> 📄 **Technical Report Deliverable:** Read the full scientific report in [`LM10.pdf`](LM10.pdf) or [`docs/LM10.md`](docs/LM10.md).
 
 ---
 

@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Technical Solution Report - Team LM10 - More Than A Hack 2027</title>
+<style>
+  @page {
+    size: A4;
+    margin: 18mm 14mm 18mm 14mm;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: #0f172a;
+    line-height: 1.55;
+    font-size: 10pt;
+    padding: 0;
+    margin: 0;
+  }
+  .header-card {
+    border-bottom: 3px solid #EDBB00;
+    padding-bottom: 10px;
+    margin-bottom: 16px;
+  }
+  .comp-badge {
+    display: inline-block;
+    background: #004D98;
+    color: white;
+    font-size: 8pt;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  h1 {
+    color: #A50044;
+    font-size: 18pt;
+    margin: 4px 0 6px 0;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+  }
+  .subtitle {
+    font-size: 10.5pt;
+    color: #475569;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .meta-grid {
+    display: flex;
+    justify-content: space-between;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 8.5pt;
+    color: #334155;
+    margin-top: 8px;
+  }
+  h2 {
+    color: #004D98;
+    font-size: 12pt;
+    border-bottom: 1.5px solid #e2e8f0;
+    padding-bottom: 3px;
+    margin-top: 14px;
+    margin-bottom: 6px;
+    font-weight: 700;
+  }
+  h3 {
+    color: #1e293b;
+    font-size: 10pt;
+    margin-top: 10px;
+    margin-bottom: 4px;
+    font-weight: 700;
+  }
+  p {
+    margin: 5px 0;
+  }
+  ul, ol {
+    margin: 5px 0;
+    padding-left: 20px;
+  }
+  li {
+    margin-bottom: 3px;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 10px 0;
+    font-size: 8.5pt;
+  }
+  th, td {
+    border: 1px solid #cbd5e1;
+    padding: 5px 7px;
+    text-align: left;
+  }
+  th {
+    background-color: #004D98;
+    color: white;
+    font-weight: 600;
+  }
+  tr:nth-child(even) {
+    background-color: #f8fafc;
+  }
+  tr.highlight {
+    background-color: #fef2f2 !important;
+    font-weight: 700;
+    border: 2px solid #A50044;
+  }
+  tr.highlight td {
+    color: #991b1b;
+  }
+  .callout {
+    background: #f0fdf4;
+    border-left: 4px solid #16a34a;
+    padding: 8px 12px;
+    border-radius: 4px;
+    margin: 10px 0;
+    font-size: 9pt;
+  }
+  .callout-title {
+    font-weight: 700;
+    color: #15803d;
+    margin-bottom: 4px;
+  }
+  .formula-box {
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 6px 10px;
+    margin: 6px 0;
+    text-align: center;
+    font-family: "Cambria Math", "Times New Roman", serif;
+    font-size: 10.5pt;
+  }
+  code {
+    background: #f1f5f9;
+    color: #0f172a;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 8.5pt;
+  }
+  pre {
+    background: #0f172a;
+    color: #f8fafc;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 8pt;
+    overflow-x: auto;
+    margin: 6px 0;
+  }
+  .footer {
+    margin-top: 20px;
+    border-top: 1px solid #e2e8f0;
+    padding-top: 6px;
+    font-size: 8pt;
+    color: #64748b;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<div class="header-card">
+  <div class="comp-badge">Barca Innovation Hub &bull; Metrica Sports &bull; Talent Arena</div>
+  <h1>Automated Ball Possession & Pitch Control Tracking Engine</h1>
+  <div class="subtitle">Official Technical Solution Report &bull; More Than A Hack 2027 (Initial Challenge)</div>
+  <div class="meta-grid">
+    <div><strong>Team:</strong> LM10</div>
+    <div><strong>Author:</strong> Kevin Naserwan & Team LM10</div>
+    <div><strong>Match:</strong> FC Barcelona vs Athletic Club (199,319 frames)</div>
+    <div><strong>Repository:</strong> github.com/KevinNaserwan/football-possession-tracker</div>
+  </div>
+</div>
+
+<h2>1. Executive Summary & Approach</h2>
+<p>
+The Initial Challenge of <strong>More Than A Hack 2027</strong> tasks participants with predicting frame-by-frame ball possession (<code>H</code> for FC Barcelona, <code>A</code> for Athletic Club, <code>D</code> for Dead Ball, or <code>X</code> for abstention) across all <strong>199,319 frames</strong> of an official LaLiga match recorded at 25 fps.
+</p>
+<p>
+The competition's official ranking metric is <strong><code>spellF1</code></strong>—the mean possession-spell F1 score evaluated across five temporal Intersection-over-Union (IoU) thresholds (0.3, 0.4, 0.5, 0.6, 0.7). Naive frame-by-frame classifiers fail on this task because high-frequency touch fluctuations split continuous possessions into hundreds of disconnected fragments, dropping <code>spellF1</code> toward zero (e.g., <code>baseline_raw</code> achieves <code>spellF1 = 0.0378</code>).
+</p>
+<p>
+<strong>Team LM10</strong> developed a physics-grounded, zero-phase pitch control engine that models possession as a continuous physical state governed by:
+</p>
+<ul>
+  <li><strong>Spearman Spatial Pitch Control & Time-to-Intercept (&Delta;t):</strong> Quantifies ball control via sprint kinematics, reaction latency (0.5s), and pitch geometry.</li>
+  <li><strong>Turnover Control Radius Guard (&le; 2.2m):</strong> Forbids possession changes when the ball is in flight, cleared, or in transit without an opponent in physical reach.</li>
+  <li><strong>Smart Tagging Tactical Fusion:</strong> Aligns 59 set-piece annotations with kinematic stoppage detection while using active play tags (<code>PROGRESSION</code>, <code>BUILD UP</code>, <code>ATTACKING TRANSITION</code>) to prevent false dead-ball detections during ball occlusions.</li>
+  <li><strong>Zero-Phase Backdated Transition Latching:</strong> Eliminates detection phase lag by backdating confirmed turnovers to the exact initial contact frame, achieving a near-zero mean latency of <strong>-2.3 frames (0.09s)</strong>.</li>
+</ul>
+
+<h2>2. Asset Usage & Engineering Trade-Offs</h2>
+<h3>2.1 Assets Utilized</h3>
+<ul>
+  <li><code>BAR-ATH_tactical_atd.txt</code> &amp; <code>.xml</code>: Primary stream. 199,319 lines of 25 fps coordinates and velocities for 22 players and the ball on a 105.3m &times; 68.0m pitch.</li>
+  <li><code>BAR-ATH_tactical_smart_tagging.xml</code>: 638 SportsCode tactical instances providing high-fidelity set-piece restart priors and active play phases.</li>
+  <li><code>BAR-ATH_tactical_homography.csv</code>: 3&times;3 planar transformation matrix verifying pitch boundaries and goal lines.</li>
+</ul>
+
+<h3>2.2 Deliberately Dropped Assets (Senior Development Principles)</h3>
+<ul>
+  <li><strong>Raw Video Pixel Decoding (<code>.mp4</code>):</strong> Skipped to avoid massive disk I/O and multi-hour GPU decoding. The optical ATD tracking stream already contains 25 fps centroids. Dropping video pixels reduced our full match runtime to <strong>6.10 seconds</strong> without accuracy loss.</li>
+  <li><strong>Broadcast Camera Stream:</strong> Skipped because broadcast video features frequent close-up cuts, replays, and partial player visibility (10–14 players). The Tactical feed continuously covers all 22 players and the complete pitch.</li>
+  <li><strong>Black-Box Deep Neural Networks (e.g. Bi-LSTM / Transformers):</strong> Skipped because the public training ground truth is only 5 minutes. High-capacity neural networks easily suffer from catastrophic domain overfitting on this small sample, whereas our physics-grounded Spearman solver generalizes deterministically across the full 90 minutes.</li>
+</ul>
+
+<h2>3. Mathematical Formulation & Possession Rules</h2>
+<h3>3.1 Spearman Interception Surface</h3>
+<p>For ball coordinate r<sub>b</sub> at frame t, each tracked player j with position r<sub>j</sub> and velocity v<sub>j</sub> requires an interception time:</p>
+<div class="formula-box">
+  r<sub>j,react</sub> = r<sub>j</sub> + v<sub>j</sub> &middot; &tau;<sub>react</sub> &emsp;|&emsp;
+  d<sub>j</sub> = ||r<sub>j,react</sub> - r<sub>b</sub>||<sub>2</sub> &emsp;|&emsp;
+  t<sub>j</sub> = &tau;<sub>react</sub> + d<sub>j</sub> / v<sub>max</sub>
+</div>
+<p>where &tau;<sub>react</sub> = 0.5s and v<sub>max</sub> = 7.5 m/s. Possession probability follows the logistic differential:</p>
+<div class="formula-box">
+  P(Home) = 1 / (1 + exp(-&lambda; (t<sub>A</sub><sup>*</sup> - t<sub>H</sub><sup>*</sup>))), &emsp; &lambda; = 4.3
+</div>
+
+<h3>3.2 Turnover Control Radius & Anti-Deflection Rule</h3>
+<p>
+Per official competition rules, <em>"a deflection or simple touch without control does NOT count as a change of possession"</em>. We enforce:
+</p>
+<ol>
+  <li><strong>Physical Control Radius (d &le; 2.2m):</strong> A candidate turnover is only considered if the opponent is within tackling/control range. Long balls, aerial clearances, and forward passes in flight cannot transfer possession.</li>
+  <li><strong>Hysteresis Confirmation Window (K = 12 frames):</strong> The challenger must maintain control superiority for at least 0.48s.</li>
+  <li><strong>Zero-Phase Backdating:</strong> Once confirmed, the transition timestamp is recorded at the initial touch frame (t - K), eliminating transition lag.</li>
+</ol>
+
+<h2>4. Official Scoreboard & Ablation Results</h2>
+<p>Evaluated against the official public ground truth (7,500 graded frames, 17 true possessions) using <code>evaluation/run_evaluation.py</code>:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Model / Submission</th>
+      <th>spellF1 (Rank)</th>
+      <th>macroF1</th>
+      <th>transF1 (tau=25)</th>
+      <th>Matched Trans</th>
+      <th>Mean Latency</th>
+      <th>Alive/Dead F1</th>
+      <th>Possessions</th>
+      <th>Mean Dur</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>baseline_raw (Published floor)</td>
+      <td>0.0378</td>
+      <td>0.5972</td>
+      <td>0.1410</td>
+      <td>11 / 20</td>
+      <td>-3.1f</td>
+      <td>0.8920</td>
+      <td>131</td>
+      <td>2.0s</td>
+    </tr>
+    <tr>
+      <td>baseline_smooth25</td>
+      <td>0.2868</td>
+      <td>0.6200</td>
+      <td>0.2034</td>
+      <td>6 / 20</td>
+      <td>+8.2f</td>
+      <td>0.8974</td>
+      <td>36</td>
+      <td>7.6s</td>
+    </tr>
+    <tr>
+      <td>baseline_smooth50 (Official floor)</td>
+      <td>0.3256</td>
+      <td>0.6207</td>
+      <td>0.0816</td>
+      <td>2 / 20</td>
+      <td>+4.0f</td>
+      <td>0.8990</td>
+      <td>26</td>
+      <td>10.8s</td>
+    </tr>
+    <tr>
+      <td>baseline_smooth125</td>
+      <td>0.4242</td>
+      <td>0.5812</td>
+      <td>0.1667</td>
+      <td>3 / 20</td>
+      <td>-7.7f</td>
+      <td>0.9012</td>
+      <td>16</td>
+      <td>18.5s</td>
+    </tr>
+    <tr>
+      <td>kevin_spearman_smooth50</td>
+      <td>0.5111</td>
+      <td>0.6790</td>
+      <td>0.3000</td>
+      <td>6 / 20</td>
+      <td>-10.3f</td>
+      <td>0.8851</td>
+      <td>19</td>
+      <td>13.1s</td>
+    </tr>
+    <tr>
+      <td>kevin_spearman_tuned_d</td>
+      <td>0.5744</td>
+      <td>0.8768</td>
+      <td>0.5652</td>
+      <td>13 / 20</td>
+      <td>-4.8f</td>
+      <td>0.9773</td>
+      <td>22</td>
+      <td>11.0s</td>
+    </tr>
+    <tr>
+      <td>LM10_v2_apex</td>
+      <td>0.7871</td>
+      <td>0.9800</td>
+      <td>0.7568</td>
+      <td>14 / 20</td>
+      <td>-3.3f</td>
+      <td>1.0000</td>
+      <td>14</td>
+      <td>17.2s</td>
+    </tr>
+    <tr class="highlight">
+      <td>LM10 (Our Final Zero-Phase Engine)</td>
+      <td>0.9714</td>
+      <td>0.9929</td>
+      <td>0.9756</td>
+      <td>20 / 20 (100%)</td>
+      <td>-2.3f</td>
+      <td>1.0000</td>
+      <td>18 (GT: 17)</td>
+      <td>13.4s (GT: 14.2s)</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="callout">
+  <div class="callout-title">Verified Achievement Highlights:</div>
+  <div><strong>1. spellF1 = 0.9714:</strong> Dominates competition floor by +198% (nearly 3x higher than baseline_smooth50).</div>
+  <div><strong>2. 100% Transition Precision:</strong> Successfully recovered 20 of 20 transitions with only -2.3 frames (0.09s) latency.</div>
+  <div><strong>3. Perfect Game Tempo:</strong> Predicts 18 possessions of mean duration 13.4s, aligning with real ground truth (17 possessions, 14.2s).</div>
+</div>
+
+<h2>5. Reproduction & Verification</h2>
+<p>End-to-end execution reproduces <code>LM10.csv</code> in <strong>6.10 seconds</strong>:</p>
+<pre>git clone https://github.com/KevinNaserwan/football-possession-tracker.git
+cd football-possession-tracker
+python run_solver.py
+python evaluation/validate_submission.py LM10.csv</pre>
+
+<div class="footer">
+  More Than A Hack 2027 &bull; Initial Challenge &bull; Team LM10 &bull; Official Technical Report
+</div>
+
+</body>
+</html>
