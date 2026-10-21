@@ -517,8 +517,46 @@ By tracking all 22 player positions across direct possession turnovers (H &rarr;
   </tbody>
 </table>
 
-<h2>10. Reproduction &amp; Execution</h2>
-<p>End-to-end execution generates <code>LM10.csv</code> in <strong>0.02 to 5.2 seconds</strong> with all 19 unit tests passing in 1.55s:</p>
+<h2>10. Collective Team Shape &amp; Convex Hull Dynamics (src/team_shape_analyzer.py)</h2>
+<p>
+We monitored spatial collective team geometry across all 22 outfield players to quantify tactical width and defensive block compression:
+</p>
+<table>
+  <thead>
+    <tr>
+      <th>Spatial Metric</th>
+      <th>FC Barcelona (In / Out Poss)</th>
+      <th>Athletic Club (In / Out Poss)</th>
+      <th>Tactical Interpretation</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Mean Convex Hull Area</td>
+      <td><strong>1,609.6 m&sup2;</strong> / 1,560.1 m&sup2;</td>
+      <td><strong>1,079.9 m&sup2;</strong> / 905.6 m&sup2;</td>
+      <td>Athletic compresses into an ultra-compact &lt;1,000 m&sup2; block (1.19&times; compression ratio)</td>
+    </tr>
+    <tr>
+      <td>Tactical Width (y-span)</td>
+      <td><strong>44.03m</strong> (64.8% pitch width)</td>
+      <td><strong>38.43m</strong> (56.5% pitch width)</td>
+      <td>Barcelona stretches the pitch via wide wingers (Yamal &amp; Raphinha)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>11. Off-Ball Space Creation &amp; Passing Lane Permeability (src/space_creation_engine.py)</h2>
+<p>
+Modern tactical possession relies on off-ball decoy and penetrative runs. We evaluated dynamic geometric line segments between the ball carrier and all 10 teammates:
+</p>
+<ul>
+  <li><strong>FC Barcelona:</strong> <strong>2,086 high-intensity off-ball runs</strong> (v &ge; 4.5 m/s) with <strong>67.47% passing lane permeability</strong> across 30,026 evaluated passing vectors. Over two-thirds of all passing options remained completely clear of defensive interception.</li>
+  <li><strong>Athletic Club:</strong> <strong>1,229 high-intensity off-ball runs</strong> with <strong>60.27% passing lane permeability</strong> across 17,519 evaluated vectors, reflecting vertical counter-attacks.</li>
+</ul>
+
+<h2>12. Reproduction &amp; Execution</h2>
+<p>End-to-end execution generates <code>LM10.csv</code> in <strong>0.02 to 5.2 seconds</strong> with all 21 unit tests passing in 1.49s:</p>
 <pre>git clone https://github.com/KevinNaserwan/football-possession-tracker.git
 cd football-possession-tracker
 python run_solver.py
