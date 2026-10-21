@@ -2605,10 +2605,56 @@ HTML_TEMPLATE = """
       ctx2D.fill();
     }
 
-    // ---------------- FRAME RENDERER CONTROLLER ----------------
-    function render(frameIdx) {
-      const f = matchData[frameIdx - 1];
+    // ---------------- FRAME RENDERER CONTROLLER & SUB-FRAME LERP ----------------
+    function interpolateFrames(f1, f2, alpha) {
+      if (!f2) return f1;
+      const a = Math.max(0, Math.min(1, alpha));
+      const b1 = f1.ball || { x: 52.5, y: 34.0, z: 0 };
+      const b2 = f2.ball || { x: 52.5, y: 34.0, z: 0 };
+      const interpBall = {
+        ...b1,
+        x: b1.x + (b2.x - b1.x) * a,
+        y: b1.y + (b2.y - b1.y) * a,
+        z: (b1.z || 0) + ((b2.z || 0) - (b1.z || 0)) * a,
+        speed_kmh: (b1.speed_kmh || 0) + ((b2.speed_kmh || 0) - (b1.speed_kmh || 0)) * a
+      };
+
+      const pMap = {};
+      if (f2.players) {
+        f2.players.forEach(p => { pMap[p.id] = p; });
+      }
+
+      const interpPlayers = (f1.players || []).map(p1 => {
+        const p2 = pMap[p1.id];
+        if (!p2) return p1;
+        return {
+          ...p1,
+          x: p1.x + (p2.x - p1.x) * a,
+          y: p1.y + (p2.y - p1.y) * a,
+          z: (p1.z || 0) + ((p2.z || 0) - (p1.z || 0)) * a,
+          speed_kmh: (p1.speed_kmh || 0) + ((p2.speed_kmh || 0) - (p1.speed_kmh || 0)) * a
+        };
+      });
+
+      return {
+        ...f1,
+        ball: interpBall,
+        players: interpPlayers
+      };
+    }
+
+    let lastRenderedIntFrame = -1;
+
+    function render(frameIdx, alpha = 0) {
+      let f = matchData[frameIdx - 1];
       if (!f) return;
+
+      if (alpha > 0.001 && frameIdx < matchData.length) {
+        const fNext = matchData[frameIdx];
+        if (fNext) {
+          f = interpolateFrames(f, fNext, alpha);
+        }
+      }
 
       // Dynamic Smooth Camera Tracking for active preset modes
       if (currentCamPreset === 'action') {
@@ -3280,14 +3326,43 @@ HTML_TEMPLATE = """
       render(currentFrame);
     }
 
+    let lastAnimTime = 0;
+    let animFrameReq = null;
+    let virtualFrame = 1.0;
+
+    function playLoop(timestamp) {
+      if (!isPlaying) return;
+      if (!lastAnimTime) lastAnimTime = timestamp;
+      const dt = Math.min(0.1, (timestamp - lastAnimTime) / 1000.0);
+      lastAnimTime = timestamp;
+
+      // 25 FPS base rate smoothly interpolated to screen refresh rate (60Hz / 120Hz)
+      virtualFrame += dt * 25.0;
+      if (virtualFrame >= maxFrames) {
+        virtualFrame = maxFrames;
+        currentFrame = maxFrames;
+        render(maxFrames, 0);
+        togglePlay();
+        return;
+      }
+
+      currentFrame = Math.floor(virtualFrame);
+      const alpha = virtualFrame - currentFrame;
+      render(currentFrame, alpha);
+
+      animFrameReq = requestAnimationFrame(playLoop);
+    }
+
     function onSlide(val) {
       currentFrame = parseInt(val);
-      render(currentFrame);
+      virtualFrame = currentFrame;
+      render(currentFrame, 0);
     }
 
     function stepFrame(delta) {
       currentFrame = Math.max(1, Math.min(maxFrames, currentFrame + delta));
-      render(currentFrame);
+      virtualFrame = currentFrame;
+      render(currentFrame, 0);
     }
 
     function togglePlay() {
@@ -3296,18 +3371,16 @@ HTML_TEMPLATE = """
       if (isPlaying) {
         btn.textContent = 'Pause ⏸';
         btn.style.background = '#e11d48';
-        playTimer = setInterval(() => {
-          if (currentFrame >= maxFrames) {
-            togglePlay();
-            return;
-          }
-          currentFrame += 1;
-          render(currentFrame);
-        }, 40); // 25 FPS match velocity
+        virtualFrame = currentFrame;
+        lastAnimTime = 0;
+        animFrameReq = requestAnimationFrame(playLoop);
       } else {
         btn.textContent = 'Play ▶';
         btn.style.background = 'var(--accent)';
-        clearInterval(playTimer);
+        if (animFrameReq) {
+          cancelAnimationFrame(animFrameReq);
+          animFrameReq = null;
+        }
       }
     }
 
@@ -3324,7 +3397,8 @@ HTML_TEMPLATE = """
         }
       }
       currentFrame = targetIdx;
-      render(currentFrame);
+      virtualFrame = currentFrame;
+      render(currentFrame, 0);
       updateActiveChapterButton(targetMin);
     }
 
